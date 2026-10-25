@@ -1,0 +1,6 @@
+<canvas id="c" width="320" height="240"></canvas>
+<script>
+const gl = document.getElementById('c').getContext('webgl2');
+document.title = gl ? ('ok ' + gl.getParameter(gl.VERSION) + ' | ' + gl.getParameter(gl.MAX_TEXTURE_SIZE)) : 'no webgl2';
+if (gl) { gl.clearColor(0.2,0.4,0.8,1); gl.clear(gl.COLOR_BUFFER_BIT); }
+</script>

@@ -1,0 +1,156 @@
+<div id="app">
+  <canvas id="gl"></canvas>
+  <div id="touch"></div>
+  <canvas id="impact"></canvas>
+  <div id="fx"></div>
+  <canvas id="stroke"></canvas>
+  <div id="aim" hidden><div class="zone"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="aimlabel">畫出球路・放開處＝進壘點</div></div>
+
+  <div id="hud" hidden>
+    <div id="pitchMenu" hidden>
+      <button data-t="FB"><svg viewBox="0 0 24 24"><path d="M12 22V4M8 8l4-4 4 4"/></svg><b>直球</b></button>
+      <button data-t="SL"><svg viewBox="0 0 24 24"><path d="M10 22C10 14 10 9 18 5M14 4h4v4"/></svg><b>滑球</b></button>
+      <button data-t="CB"><svg viewBox="0 0 24 24"><path d="M9 22C8 10 13 2 17 6c2 2 0 6-1 8"/></svg><b>曲球</b></button>
+      <button data-t="CH"><svg viewBox="0 0 24 24"><path d="M12 22v-4M12 15v-3M12 9V6M9 8l3-3 3 3"/></svg><b>變速</b></button>
+      <button data-t="SF"><svg viewBox="0 0 24 24"><path d="M11 22V7c0-4 3-4 3 0v6M11 13l3 3 3-3"/></svg><b>指叉</b></button>
+    </div>
+    <div id="powerBar" hidden><span class="pbl">力氣</span><div class="pbt"><i class="pbm"></i><i class="pbf"></i></div><span class="pbr">MAX</span></div>
+    <div id="scorebar">
+      <div class="team t0"><b class="tn"></b><span class="runs">0</span></div>
+      <div class="inn"><span class="arrow">▲</span><span class="num">1</span></div>
+      <div class="team t1"><b class="tn"></b><span class="runs">0</span></div>
+      <div class="count">
+        <div class="row"><em>B</em><i></i><i></i><i></i></div>
+        <div class="row"><em>S</em><i></i><i></i></div>
+        <div class="row"><em>O</em><i></i><i></i></div>
+      </div>
+    </div>
+    <button id="pauseBtn" aria-label="暫停">❚❚</button>
+    <div id="oppGauge"><span>對手必殺</span><div class="bar"><i></i></div></div>
+    <div id="pcard" class="pcard"><div class="nm"></div><div class="sub"></div><div class="hp"><i></i></div><div class="sta"><i></i></div></div>
+    <div id="bcard" class="pcard"><div class="nm"></div><div class="sub"></div><div class="hp"><i></i></div><div class="abl"></div></div>
+    <div id="mini" hidden>
+      <button class="mb b2" data-b="2"></button><button class="mb b3" data-b="3"></button><button class="mb b1" data-b="1"></button>
+      <div class="mlabel">點壘包盜壘</div>
+    </div>
+    <div id="gaugeWrap">
+      <div class="glabel">必殺槽</div>
+      <div class="bar"><i></i></div>
+      <button id="skillBtn" disabled>必殺</button>
+    </div>
+    <div id="hint"></div>
+    <div id="timing"></div>
+    <div id="caption" aria-live="polite"><b class="cpL">實況</b><span class="cpT"></span></div>
+    <div id="w8chip" hidden></div>
+  </div>
+
+  <div id="bases"></div>
+  <div id="intro" hidden><div class="inPanel"><div class="inTeam"></div><div class="inName"></div><div class="inStance"></div><div class="inSkill"></div></div><div class="inSkip">點一下跳過</div></div>
+  <div id="vs" hidden>
+    <div class="vsHalf top"><img alt=""><div class="vsTxt"><div class="vsRole"></div><div class="vsName"></div></div></div>
+    <div class="vsHalf bot"><img alt=""><div class="vsTxt"><div class="vsRole"></div><div class="vsName"></div></div></div>
+    <div class="vsMid"><div class="vsTag">宿敵對決</div><div class="vsV">VS</div><div class="vsTheme"></div></div>
+  </div>
+  <div id="cutin" hidden><div class="ciBand"><div class="ciWho"></div><div class="ciMove"></div><div class="ciDesc"></div></div></div>
+  <div id="stamp" hidden><span></span></div>
+  <div id="cutBox" hidden><div class="cbName"></div><div class="cbText"></div><div class="cbNext">▶</div></div>
+  <button id="cutSkip" hidden>跳過 ▸▸</button>
+  <div id="call"></div>
+  <div id="hrBanner" hidden><div class="hr1"></div><div class="hr2"></div></div>
+  <div id="banner"><div class="b1"></div><div class="b2"></div></div>
+  <div id="sbanner"><div class="sb-name"></div><div class="sb-move"></div><div class="sb-desc"></div></div>
+  <div id="toast"></div>
+
+  <div id="pad" hidden>
+    <div class="padcard">
+      <div class="padtitle"></div>
+      <div class="padsub">照著發光的符號畫一筆</div>
+      <canvas id="padCanvas" width="300" height="300"></canvas>
+      <div class="padmsg"></div>
+      <button class="ghost" id="padCancel">取消</button>
+    </div>
+  </div>
+
+  <section id="scrTitle" class="screen">
+    <div class="titlewrap">
+      <div class="logo">
+        <div class="logo-top">東方眾神 <span>VS</span> 西方眾神</div>
+        <h1>英雄棒球大戰</h1>
+        <div class="seal">殺人<br>棒球</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="menu">
+        <button class="primary" id="btnPlay">開始比賽</button>
+        <button id="btnRoster">英雄圖鑑</button>
+        <button id="btnHow">玩法說明</button>
+      </div>
+      <div class="foot">試玩版 · 兩隊 24 位英雄</div>
+    </div>
+  </section>
+
+  <section id="scrSetup" class="screen" hidden>
+    <div class="panel wide">
+      <h2>選擇你的球隊</h2>
+      <div class="teams">
+        <button class="teamcard e" data-team="E"><div class="tc-band"></div><div class="tc-name">東方神將隊</div><div class="tc-desc">孫悟空・須佐之男・哪吒・九尾狐<br>速度與花招的隊伍</div><div class="tc-faces"></div></button>
+        <button class="teamcard w" data-team="W"><div class="tc-band"></div><div class="tc-name">西方神祇隊</div><div class="tc-desc">宙斯・海克力士・索爾・雅典娜<br>力量與神威的隊伍</div><div class="tc-faces"></div></button>
+      </div>
+      <div class="opts">
+        <div class="opt"><span>局數</span><div class="seg" data-opt="innings"><button data-v="1">1 局</button><button data-v="3" class="on">3 局</button><button data-v="9">9 局</button></div></div>
+        <div class="opt"><span>難度</span><div class="seg" data-opt="diff"><button data-v="easy">簡單</button><button data-v="normal" class="on">普通</button><button data-v="hard">困難</button></div></div>
+        <div class="opt"><span>攻守</span><div class="seg" data-opt="first"><button data-v="1" class="on">先攻</button><button data-v="0">後攻</button></div></div>
+      </div>
+      <div class="row-btns"><button class="ghost" id="setupBack">返回</button><button class="primary" id="btnStart">開打！</button></div>
+    </div>
+  </section>
+
+  <section id="scrRoster" class="screen scroll" hidden>
+    <div class="panel wide">
+      <div class="rhead"><h2>英雄圖鑑</h2><button class="ghost" id="rosterBack">返回</button></div>
+      <div class="tabs"><button data-t="E" class="on">東方神將隊</button><button data-t="W">西方神祇隊</button></div>
+      <div id="rosterList"></div>
+    </div>
+  </section>
+
+  <section id="scrHow" class="screen scroll" hidden>
+    <div class="panel wide how">
+      <div class="rhead"><h2>玩法說明</h2><button class="ghost" id="howBack">返回</button></div>
+      <div class="howgrid">
+        <div class="hcard"><h3>打擊</h3><p>投手出手後，在球進本壘板那一刻<b>按下螢幕</b>揮棒。打擊框會自動鎖定來球，好球壞球都打得到，只看時機；出棒越晚，需要的力氣越大。</p><p>打中時畫面會變慢、跳出<b>力氣條</b>。手指按住不放：往左右滑決定打向左外野或右外野，往上滑打高飛球、往下滑打滾地球；<b>放開手指</b>那一刻力氣條停在哪，就是多大力。</p></div>
+        <div class="hcard"><h3>投球</h3><p>先在下方<b>選球種</b>，再從螢幕下方<b>往上畫出球路</b>，手指放開的位置就是進壘點。</p><p>球會照你畫的形狀跑，能彎多少看球種和投手的「變化」能力（直球幾乎不會彎）。球速由投手能力和球種決定。</p></div>
+        <div class="hcard"><h3>必殺技</h3><p>好球、安打、出局、受傷都會累積必殺槽。集滿後點<b>必殺</b>，照著符號畫一筆就能發動英雄的專屬招式。</p><p>打擊時在投手出手前發動；投球時發動後，照常選球種、畫球路，投出去的就是魔球。</p></div>
+        <div class="hcard"><h3>守備</h3><p>野手會自己追球。你的野手接到球時時間會變慢，<b>點畫面上的壘包</b>決定傳哪一壘；不點的話會自動傳。</p></div>
+        <div class="hcard"><h3>跑壘</h3><p>跑者會自己判斷。球打出去後，壘包上會出現「衝！」或「退回」，點一下就能指揮跑者。投手出手前，點右下角小鑽石上的壘包可以盜壘。</p></div>
+        <div class="hcard"><h3>比賽事件</h3><p><b>宿敵對決</b>：有宿怨的神明對上時會先放話，雙方必殺槽 +20%。<b>覺醒</b>：被觸身球砸中的打者下次上場會覺醒，隊友被擊倒時下一棒也會覺醒，那個打席時機和力量都提升。</p><p><b>關鍵時刻</b>：滿壘、最終局落後、兩出局滿球數時全場沸騰。<b>天候異變</b>：暴雨、雷雨、強風、濃霧會改變比賽，每次維持半局。野手也可能飛身撲接，甚至沒收全壘打。</p></div>
+        <div class="hcard"><h3>殺人棒球</h3><p>每位英雄都有體力。觸身球、強襲球、衝撞和必殺技都會造成傷害，體力歸零就被<b>擊倒退場</b>，由替補上場。場上能打的人少於 6 人就直接輸掉比賽。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="scrPause" class="screen dim" hidden>
+    <div class="panel">
+      <h2>暫停</h2>
+      <div class="menu">
+        <button class="primary" id="btnResume">繼續比賽</button>
+        <button id="btnQuality">畫質：高</button>
+        <button id="btnSound">音效：開</button>
+        <button id="btnMusic">音樂：開</button>
+        <button id="btnHow2">玩法說明</button>
+        <button class="ghost" id="btnQuit">回到標題</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scrOver" class="screen dim" hidden>
+    <div class="panel">
+      <div class="ov-title"></div>
+      <div class="ov-score"></div>
+      <div class="ov-line"></div>
+      <div class="ov-stats"></div>
+      <div class="menu"><button class="primary" id="btnAgain">再來一場</button><button class="ghost" id="btnHome">回到標題</button></div>
+    </div>
+  </section>
+
+  <div id="loading">英雄們正在熱身…</div>
+  <div id="nogl" hidden>這個瀏覽器不支援 WebGL2，無法顯示遊戲畫面。</div>
+</div>

@@ -902,13 +902,13 @@ function animatePlayer(pl, dt) {
   pl.sprite.scale = (pl.hero.look.scale || 1) * (pl.giant ? 2.4 : 1);
   if (pl.giant > 0) { pl.giant -= dt; if (pl.giant < 0) pl.giant = 0; }
   // quantized pose time
-  const f = Math.floor(pl.anim.t * ANIM_FPS);
+  const f = Math.floor(pl.anim.t * (pl.anim.k === 'swing' ? 60 : ANIM_FPS)); // the swing is fast: every frame of it is drawn
   const key = pl.anim.k + ':' + f;
   if (key !== pl.poseKeyRaw) {
     pl.poseKeyRaw = key;
     const tq = f / ANIM_FPS;
     pl.sprite.look._t = pl.animT;
-    pl.sprite.pose = playerPose(pl, pl.anim.k === 'bat' || pl.anim.k === 'ready' || pl.anim.k === 'squat' || pl.anim.k === 'sumo' || pl.anim.k === 'pstand' || pl.anim.k === 'lead' || pl.anim.k === 'umpSet' ? pl.animT : tq);
+    pl.sprite.pose = playerPose(pl, pl.anim.k === 'bat' || pl.anim.k === 'swing' || pl.anim.k === 'ready' || pl.anim.k === 'squat' || pl.anim.k === 'sumo' || pl.anim.k === 'pstand' || pl.anim.k === 'lead' || pl.anim.k === 'umpSet' ? pl.animT : tq);
     pl.sprite.poseKey = key + ':' + (pl.ko ? 1 : 0);
   }
 }

@@ -169,7 +169,7 @@ function batSwing(st, t, up = 0, pre = 0) {
   const keys = [
     [0, base0],
     [0.24, batLoad(st, base0)],
-    [0.5, { root: [-0.05, 0.36, 0.04], yaw: 0.55, cYaw: 0.4, pitch: 0.22, roll: -0.05, hPitch: 0.18, hR: [-0.03, contactH, 0.27], hL: [-0.07, contactH - 0.02, 0.25], fR: [0.13, 0.12, -0.1], fL: [-w * 0.5 - 0.16, 0.05, 0.14], kR: [0.25, 0.25, 0.75], kL: [-0.5, 0.3, 0.6], bat: { hand: 'both', dir: vnorm([-0.15, up * 0.25 - 0.05, 1]) }, expr: 'shout' }, 'in'],
+    [0.5, { root: [-0.05, 0.36, 0.04], yaw: 0.55, cYaw: 0.4, pitch: 0.22, roll: -0.05, hPitch: 0.18, hR: [0.04, contactH, 0.27], hL: [0.0, contactH - 0.02, 0.25], fR: [0.13, 0.12, -0.1], fL: [-w * 0.5 - 0.16, 0.05, 0.14], kR: [0.25, 0.25, 0.75], kL: [-0.5, 0.3, 0.6], bat: { hand: 'both', dir: vnorm([-0.1, up * 0.25 - 0.05, 1]) }, expr: 'shout' }, 'in'],
     [0.66, { root: [-0.06, 0.38, 0.04], yaw: 0.95, cYaw: 0.85, pitch: 0.14, roll: -0.04, hPitch: 0.1, hR: [-0.22, 0.64 + up * 0.1, 0.12], hL: [-0.24, 0.62 + up * 0.1, 0.08], fR: [0.1, 0.14, -0.08], fL: [-w * 0.5 - 0.16, 0.05, 0.14], bat: { hand: 'both', dir: vnorm([-1, 0.25 + up * 0.3, 0.15]) }, expr: 'shout' }, 'out'],
     [1, { root: [-0.06, 0.4, 0.03], yaw: 1.05, cYaw: 0.95, pitch: 0.06, hR: [-0.2, 0.76, -0.06], hL: [-0.22, 0.74, -0.03], fR: [0.06, 0.16, -0.06], fL: [-w * 0.5 - 0.16, 0.05, 0.14], kR: [0.15, 0.3, 0.7], bat: { hand: 'both', dir: vnorm([0.25, 0.55, -0.85]) }, expr: 'normal' }],
   ];
@@ -179,7 +179,7 @@ function batSwing(st, t, up = 0, pre = 0) {
   // then the hips open ahead of the shoulders and the bat comes through flat
   const L = keys[1][1], C = keys[2][1];
   const stride = Object.assign({}, lerpPose(L, C, 0.2), { hR: L.hR, hL: L.hL, bat: L.bat, cYaw: L.cYaw - 0.05, fL: C.fL, kL: C.kL || L.kL, yaw: L.yaw + 0.05 });
-  const launch = Object.assign({}, lerpPose(L, C, 0.62), { yaw: C.yaw - 0.05, cYaw: lerp(L.cYaw, C.cYaw, 0.45), fL: C.fL, bat: { hand: C.bat.hand, dir: vnorm(lerpV(L.bat.dir, [-0.95, C.bat.dir[1], 0.1], 0.75)) } });
+  const launch = Object.assign({}, lerpPose(L, C, 0.62), { yaw: C.yaw - 0.05, cYaw: lerp(L.cYaw, C.cYaw, 0.45), fL: C.fL, bat: { hand: C.bat.hand, dir: vnorm(lerpV(L.bat.dir, [0.6, 0.12, -0.8], 0.8)) } }); // bat laid flat behind, knob leading
   keys.splice(2, 0, [0.36, stride], [0.44, launch, 'in']);
   // he may already be loaded when the swing starts
   if (pre > 0) keys[0] = [0, lerpPose(base0, L, Math.min(1, pre))];

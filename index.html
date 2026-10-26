@@ -2456,20 +2456,86 @@ function batStance(st, t) {
   return p;
 }
 // swing: t in [0,1]; contact at t=0.5. variant: upward (-1..1) swing plane
-function batSwing(st, t, up = 0) {
-  const base = batStance(st, 0);
+// the load a hitter sinks into while the pitch is on its way (pre = 0..1)
+function batLoad(st, base) {
+  return Object.assign({}, base, { root: [0.03, base.root[1] - 0.02, -0.03], yaw: base.yaw - 0.12, cYaw: -0.6, pitch: (base.pitch || 0.12) + 0.04, roll: 0,
+    fL: [-((st.w || 0.2) * 0.5) - 0.1, 0.13, 0.06], kL: [-0.3, 0.55, 0.6], hR: [0.16, 0.76, -0.08], hL: [0.12, 0.73, -0.05], bat: { hand: 'both', dir: vnorm([0.5, 0.72, -0.45]) } });
+}
+// swing: t in [0,1]; contact at t=0.5. up: swing plane (-1 grounder .. 1 fly). pre: how far into the load he already was
+// a real swing: stride and plant, hips fire first, shoulders and hands follow with the bat lagging flat behind,
+// arms extend through the ball, back foot pivots up onto the toe, bat wraps over the front shoulder
+function batSwing(st, t, up = 0, pre = 0) {
+  const base0 = batStance(st, 0);
   const contactH = 0.5 + up * 0.08;
   const iai = st.style === 'iai';
+  const w = st.w || 0.2;
   const keys = [
-    [0, base],
-    [0.28, Object.assign({}, base, { yaw: base.yaw - 0.1, cYaw: -0.55, pitch: 0.15, roll: 0, fL: [-((st.w || 0.2) * 0.5) - 0.14, 0.1, 0.08], hR: [0.14, 0.74, -0.06], hL: [0.1, 0.71, -0.03], bat: { hand: 'both', dir: vnorm([0.45, 0.75, -0.45]) } })],
-    [0.5, { root: [-0.04, 0.37, 0.02], yaw: 0.45, cYaw: 0.45, pitch: 0.2, hR: [-0.02, contactH, 0.24], hL: [-0.06, contactH - 0.02, 0.22], fR: [0.15, 0.06, -0.04], fL: [-0.26, 0.05, 0.12], kR: [0.4, 0.2, 0.7], kL: [-0.5, 0.3, 0.6], bat: { hand: 'both', dir: vnorm([-0.15, up * 0.25 - 0.05, 1]) }, expr: 'shout' }, 'in'],
-    [0.66, { root: [-0.05, 0.38, 0.02], yaw: 0.8, cYaw: 0.7, pitch: 0.12, hR: [-0.2, 0.62 + up * 0.1, 0.12], hL: [-0.22, 0.6 + up * 0.1, 0.08], fR: [0.12, 0.08, -0.04], fL: [-0.26, 0.05, 0.12], bat: { hand: 'both', dir: vnorm([-1, 0.2 + up * 0.3, 0.2]) }, expr: 'shout' }, 'out'],
-    [1, { root: [-0.05, 0.4, 0], yaw: 0.9, cYaw: 0.75, pitch: 0.05, hR: [-0.18, 0.72, -0.05], hL: [-0.2, 0.7, -0.02], fR: [0.08, 0.12, -0.02], fL: [-0.26, 0.05, 0.12], bat: { hand: 'both', dir: vnorm([0.2, 0.5, -0.9]) }, expr: 'normal' }],
+    [0, base0],
+    [0.24, batLoad(st, base0)],
+    [0.5, { root: [-0.05, 0.36, 0.04], yaw: 0.55, cYaw: 0.4, pitch: 0.22, roll: -0.05, hPitch: 0.18, hR: [-0.03, contactH, 0.27], hL: [-0.07, contactH - 0.02, 0.25], fR: [0.13, 0.12, -0.1], fL: [-w * 0.5 - 0.16, 0.05, 0.14], kR: [0.25, 0.25, 0.75], kL: [-0.5, 0.3, 0.6], bat: { hand: 'both', dir: vnorm([-0.15, up * 0.25 - 0.05, 1]) }, expr: 'shout' }, 'in'],
+    [0.66, { root: [-0.06, 0.38, 0.04], yaw: 0.95, cYaw: 0.85, pitch: 0.14, roll: -0.04, hPitch: 0.1, hR: [-0.22, 0.64 + up * 0.1, 0.12], hL: [-0.24, 0.62 + up * 0.1, 0.08], fR: [0.1, 0.14, -0.08], fL: [-w * 0.5 - 0.16, 0.05, 0.14], bat: { hand: 'both', dir: vnorm([-1, 0.25 + up * 0.3, 0.15]) }, expr: 'shout' }, 'out'],
+    [1, { root: [-0.06, 0.4, 0.03], yaw: 1.05, cYaw: 0.95, pitch: 0.06, hR: [-0.2, 0.76, -0.06], hL: [-0.22, 0.74, -0.03], fR: [0.06, 0.16, -0.06], fL: [-w * 0.5 - 0.16, 0.05, 0.14], kR: [0.15, 0.3, 0.7], bat: { hand: 'both', dir: vnorm([0.25, 0.55, -0.85]) }, expr: 'normal' }],
   ];
   if (iai) keys[2][1].bat.dir = vnorm([-0.3, -0.05, 1]);
+  const f = SWING_STYLE[st.style]; if (f) f(keys, st, up, base0);
+  // in-between frames built from the (styled) load and contact: the front foot plants while the hands stay back,
+  // then the hips open ahead of the shoulders and the bat comes through flat
+  const L = keys[1][1], C = keys[2][1];
+  const stride = Object.assign({}, lerpPose(L, C, 0.2), { hR: L.hR, hL: L.hL, bat: L.bat, cYaw: L.cYaw - 0.05, fL: C.fL, kL: C.kL || L.kL, yaw: L.yaw + 0.05 });
+  const launch = Object.assign({}, lerpPose(L, C, 0.62), { yaw: C.yaw - 0.05, cYaw: lerp(L.cYaw, C.cYaw, 0.45), fL: C.fL, bat: { hand: C.bat.hand, dir: vnorm(lerpV(L.bat.dir, [-0.95, C.bat.dir[1], 0.1], 0.75)) } });
+  keys.splice(2, 0, [0.36, stride], [0.44, launch, 'in']);
+  // he may already be loaded when the swing starts
+  if (pre > 0) keys[0] = [0, lerpPose(base0, L, Math.min(1, pre))];
   return keyPose(keys, t);
 }
+const lerpV = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
+// each batting style swings its own way: [load, contact, follow, finish] overrides
+const swingSet = (keys, i, o) => { keys[i] = [keys[i][0], Object.assign({}, keys[i][1], o), keys[i][2]]; };
+const VN = (x, y, z) => vnorm([x, y, z]);
+const SWING_STYLE = {
+  // 金太郎: sumo charge: drops even lower, stomps forward, one-handed shove of a finish
+  sumo(k, st, up) { swingSet(k, 1, { root: [0.02, 0.22, -0.06], pitch: 0.2, fL: [-0.36, 0.22, 0.06], kL: [-0.9, 0.5, 0.3] }); swingSet(k, 2, { root: [-0.06, 0.24, 0.14], pitch: 0.32, fL: [-0.34, 0.05, 0.3], kR: [0.9, 0.3, 0.3], kL: [-0.9, 0.3, 0.3] }); swingSet(k, 3, { root: [-0.08, 0.25, 0.16], hR: [-0.3, 0.5, 0.3], hL: [-0.1, 0.4, 0.1], bat: { hand: 'R', dir: VN(-1, 0.1, 0.35) } }); swingSet(k, 4, { root: [-0.06, 0.27, 0.12], pitch: 0.25, hR: [-0.32, 0.62, 0.18], hL: [0.22, 0.45, 0.2], bat: { hand: 'R', dir: VN(-0.7, 0.6, 0.3) }, expr: 'shout' }); },
+  // 豬八戒: rake raised high, comes down and sweeps along the ground
+  shoulder(k, st, up) { swingSet(k, 1, { hR: [0.18, 0.98, -0.16], hL: [0.1, 0.94, -0.1], pitch: -0.05, bat: { hand: 'both', dir: VN(0.2, 0.55, -0.8) } }); swingSet(k, 2, { pitch: 0.38, root: [-0.04, 0.33, 0.06], hR: [-0.02, 0.44 + up * 0.08, 0.28], hL: [-0.06, 0.42 + up * 0.08, 0.26] }); swingSet(k, 3, { pitch: 0.42, hR: [-0.26, 0.34, 0.2], hL: [-0.28, 0.32, 0.16], bat: { hand: 'both', dir: VN(-1, -0.45, 0.2) } }); swingSet(k, 4, { pitch: 0.3, hR: [-0.3, 0.36, 0.06], hL: [-0.3, 0.34, 0.02], bat: { hand: 'both', dir: VN(-0.6, -0.6, -0.5) } }); },
+  // 哪吒: whirlwind — keeps spinning all the way round on one hand, hops off the ground
+  spin(k, st, up) { swingSet(k, 3, { yaw: 1.6, cYaw: 1.0, root: [-0.04, 0.48, 0.02], bat: { hand: 'R', dir: VN(-0.6, 0.15, -0.8) }, hR: [-0.3, 0.64, -0.1], hL: [0.1, 0.5, 0.1], fR: [0.1, 0.2, -0.04] }); swingSet(k, 4, { yaw: 2.6, cYaw: 0.9, root: [0, 0.44, 0], bat: { hand: 'R', dir: VN(0.8, 0.3, -0.5) }, hR: [0.3, 0.7, -0.05], hL: [-0.15, 0.5, 0.15], fR: [0.12, 0.05, 0] }); },
+  // 須佐之男: iai — perfectly still, one flash of a cut, then holds the finished stroke (zanshin)
+  iai(k, st, up) { k[1] = [0.42, Object.assign({}, k[0][1], { expr: 'normal' }), k[1][2]]; swingSet(k, 2, { root: [-0.06, 0.32, 0.12], pitch: 0.35, fL: [-0.36, 0.05, 0.22], kL: [-0.6, 0.25, 0.6] }); swingSet(k, 3, { root: [-0.08, 0.32, 0.14], pitch: 0.38, yaw: 0.7, hR: [-0.34, 0.8, 0.26], hL: [-0.2, 0.62, 0.2], bat: { hand: 'R', dir: VN(-0.6, 0.75, 0.25) }, fL: [-0.36, 0.05, 0.22] }); swingSet(k, 4, { root: [-0.08, 0.32, 0.14], pitch: 0.36, yaw: 0.75, hR: [-0.36, 0.86, 0.22], hL: [-0.16, 0.4, 0.1], bat: { hand: 'R', dir: VN(-0.55, 0.8, 0.2) }, fL: [-0.36, 0.05, 0.22], expr: 'shout' }); },
+  // 天狗: flamingo — big stride off the raised leg, ends hopping on one foot
+  leg(k, st, up) { swingSet(k, 1, { fL: [-0.08, 0.42, 0.04], kL: [-0.15, 0.8, 0.6] }); swingSet(k, 2, { fL: [-0.4, 0.05, 0.2], root: [-0.06, 0.36, 0.08] }); swingSet(k, 4, { root: [-0.04, 0.5, 0.06], fR: [0.08, 0.32, -0.12], kR: [0.2, 0.7, 0.4], hR: [-0.1, 0.84, -0.02], hL: [-0.14, 0.8, 0.0], bat: { hand: 'both', dir: VN(0.3, 0.9, -0.3) } }); },
+  // 沙悟淨: upright and compact — short, level stroke, quiet finish
+  upright(k, st, up) { swingSet(k, 1, { yaw: base0(k).yaw, cYaw: -0.3 }); swingSet(k, 3, { yaw: 0.55, cYaw: 0.4, bat: { hand: 'both', dir: VN(-1, 0.05 + up * 0.2, 0.3) } }); swingSet(k, 4, { yaw: 0.6, cYaw: 0.45, hR: [-0.1, 0.6, 0.18], hL: [-0.12, 0.58, 0.16], bat: { hand: 'both', dir: VN(-0.8, 0.1, 0.55) } }); },
+  // 孫悟空: staff on the shoulders — one-handed full sweep, then twirls it overhead
+  yoke(k, st, up) { swingSet(k, 2, { bat: { hand: 'R', dir: VN(-0.2, up * 0.25 - 0.05, 1) }, hL: [0.24, 0.6, 0.1] }); swingSet(k, 3, { yaw: 1.1, bat: { hand: 'R', dir: VN(-1, 0.25, -0.1) }, hL: [0.26, 0.55, 0.15], root: [-0.04, 0.44, 0.02] }); swingSet(k, 4, { yaw: 1.0, hR: [-0.04, 0.98, 0.06], hL: [0.24, 0.55, 0.15], bat: { hand: 'R', dir: VN(0.95, 0.15, 0.2) }, root: [0, 0.46, 0], expr: 'shout' }); },
+  // 九尾狐: open and graceful — kick-through finish with the hands high
+  open(k, st, up) { swingSet(k, 4, { yaw: 1.05, cYaw: 0.8, hR: [-0.06, 0.92, -0.04], hL: [-0.12, 0.88, 0.0], bat: { hand: 'both', dir: VN(0.35, 0.7, -0.6) }, fR: [0.12, 0.2, -0.16], kR: [0.4, 0.5, 0.4] }); },
+  // 一寸法師: tiny — the swing takes his whole body, he jumps with it
+  point(k, st, up) { swingSet(k, 2, { root: [-0.04, 0.46, 0.04] }); swingSet(k, 3, { root: [-0.05, 0.6, 0.04], fR: [0.12, 0.22, -0.04], fL: [-0.2, 0.2, 0.1] }); swingSet(k, 4, { root: [-0.05, 0.44, 0.02], yaw: 1.3 }); },
+  // 浦島太郎: fishing rod — casts from above, then reels: rod ends pointing out front
+  fish(k, st, up) { swingSet(k, 1, { hR: [0.1, 0.96, -0.1], hL: [0.06, 0.92, -0.06], bat: { hand: 'both', dir: VN(0.1, 0.4, -0.9) } }); swingSet(k, 3, { hR: [-0.06, 0.6, 0.3], hL: [-0.1, 0.58, 0.26], bat: { hand: 'both', dir: VN(-0.3, 0.1, 1) } }); swingSet(k, 4, { yaw: 0.6, cYaw: 0.3, hR: [0.0, 0.68, 0.26], hL: [-0.04, 0.6, 0.3], bat: { hand: 'both', dir: VN(-0.1, 0.45, 0.9) } }); },
+  // 黑帝斯: stays down in the crouch and rips an uppercut out of the underworld
+  low(k, st, up) { swingSet(k, 2, { root: [-0.04, 0.3, 0.04], pitch: 0.4 }); swingSet(k, 3, { root: [-0.04, 0.34, 0.04], pitch: 0.3, hR: [-0.16, 0.74, 0.14], hL: [-0.2, 0.72, 0.1], bat: { hand: 'both', dir: VN(-0.8, 0.6, 0.1) } }); swingSet(k, 4, { root: [-0.04, 0.36, 0.02], pitch: 0.2, hR: [-0.06, 0.96, -0.02], hL: [-0.1, 0.94, 0.0], bat: { hand: 'both', dir: VN(0.2, 0.95, -0.25) }, expr: 'shout' }); },
+  // 海克力士: hands high, chops down with everything, stomps, bat ends low in front
+  high(k, st, up) { swingSet(k, 1, { hR: [0.1, 1.05, -0.08], hL: [0.04, 1.02, -0.04], bat: { hand: 'both', dir: VN(0.3, 0.8, -0.5) }, pitch: -0.05 }); swingSet(k, 2, { root: [-0.04, 0.33, 0.06], pitch: 0.3, fL: [-0.32, 0.05, 0.18] }); swingSet(k, 4, { root: [-0.04, 0.3, 0.08], pitch: 0.42, hR: [-0.14, 0.36, 0.26], hL: [-0.18, 0.34, 0.22], bat: { hand: 'both', dir: VN(-0.6, -0.55, 0.55) }, expr: 'shout' }); },
+  // 荷米斯: quick slap swing, already turning toward first base at the end
+  tiptoe(k, st, up) { swingSet(k, 3, { root: [0.02, 0.46, 0.04], yaw: 1.2, cYaw: 0.4, bat: { hand: 'R', dir: VN(-0.8, 0.3, 0.5) }, hL: [0.15, 0.5, 0.2] }); swingSet(k, 4, { root: [0.08, 0.46, 0.06], yaw: 1.6, cYaw: 0.2, pitch: 0.25, hR: [-0.1, 0.5, 0.15], hL: [0.18, 0.45, 0.1], bat: { hand: 'R', dir: VN(-0.3, -0.5, 0.8) }, fR: [0.14, 0.15, 0.08] }); },
+  // 雅典娜: spear thrust — drives the bat straight out, arm fully extended
+  javelin(k, st, up) { swingSet(k, 2, { hR: [0.0, contactY(up), 0.3], hL: [0.2, 0.6, 0.0], bat: { hand: 'R', dir: VN(-0.1, up * 0.2, 1) } }); swingSet(k, 3, { yaw: 0.6, hR: [-0.04, contactY(up) + 0.04, 0.32], hL: [0.24, 0.6, 0.0], bat: { hand: 'R', dir: VN(-0.25, 0.1 + up * 0.2, 1) } }); swingSet(k, 4, { yaw: 0.65, cYaw: 0.5, hR: [-0.02, 0.62, 0.32], hL: [0.26, 0.62, -0.04], bat: { hand: 'R', dir: VN(-0.15, 0.2, 1) }, expr: 'shout' }); },
+  // 阿基里斯: charges into the ball, lunging forward through it
+  charge(k, st, up) { swingSet(k, 2, { root: [-0.04, 0.33, 0.16], pitch: 0.42, fL: [-0.3, 0.05, 0.3] }); swingSet(k, 3, { root: [-0.04, 0.33, 0.2], pitch: 0.45, fL: [-0.3, 0.05, 0.3] }); swingSet(k, 4, { root: [-0.02, 0.36, 0.24], pitch: 0.38, fL: [-0.3, 0.05, 0.3], fR: [0.1, 0.2, 0.0], expr: 'shout' }); },
+  // 奧丁: spear held point-down, swept up and finished pointing at the sky
+  staff(k, st, up) { swingSet(k, 1, { hR: [0.12, 0.5, 0.1], bat: { hand: 'R', dir: VN(0.4, -0.8, -0.4) } }); swingSet(k, 3, { bat: { hand: 'R', dir: VN(-0.7, 0.7, 0.2) }, hL: [0.2, 0.45, 0.12] }); swingSet(k, 4, { hR: [-0.08, 0.98, 0.06], hL: [0.2, 0.5, 0.1], bat: { hand: 'R', dir: VN(-0.1, 1, 0.05) }, expr: 'shout' }); },
+  // 阿波羅: drawn like a bow — releases, and holds the archer's finish
+  draw(k, st, up) { swingSet(k, 1, { hR: [0.32, 0.8, -0.14], hL: [-0.38, 0.8, 0.2], bat: { hand: 'R', dir: VN(1, 0.1, -0.3) } }); swingSet(k, 3, { bat: { hand: 'R', dir: VN(-1, 0.15, 0.2) }, hL: [-0.34, 0.8, 0.22] }); swingSet(k, 4, { yaw: 0.7, hR: [0.26, 0.78, -0.12], hL: [-0.4, 0.82, 0.24], bat: { hand: 'R', dir: VN(0.6, 0.6, -0.5) } }); },
+  // 美杜莎: the snake — body waves through the swing, bat wraps behind her back
+  snake(k, st, up) { swingSet(k, 1, { roll: -0.2, root: [0.06, 0.4, 0] }); swingSet(k, 2, { roll: 0.18 }); swingSet(k, 3, { roll: -0.15, yaw: 1.0 }); swingSet(k, 4, { roll: 0.12, yaw: 1.2, cYaw: 0.9, hR: [-0.22, 0.56, -0.2], hL: [-0.24, 0.54, -0.16], bat: { hand: 'both', dir: VN(0.7, 0.15, -0.7) } }); },
+  // 索爾: hammer smash — all the way up, all the way down into the ground
+  smash(k, st, up) { swingSet(k, 1, { hR: [0.1, 1.06, -0.14], hL: [0.04, 1.02, -0.08], bat: { hand: 'both', dir: VN(0.1, 0.4, -0.9) }, pitch: -0.12, root: [0, 0.44, -0.04] }); swingSet(k, 2, { pitch: 0.36, root: [-0.04, 0.34, 0.08] }); swingSet(k, 3, { pitch: 0.5, hR: [-0.1, 0.3, 0.3], hL: [-0.14, 0.28, 0.26], bat: { hand: 'both', dir: VN(-0.4, -0.8, 0.4) } }); swingSet(k, 4, { pitch: 0.5, root: [-0.04, 0.3, 0.1], hR: [-0.1, 0.26, 0.3], hL: [-0.14, 0.24, 0.26], bat: { hand: 'both', dir: VN(-0.3, -0.9, 0.3) }, expr: 'shout' }); },
+  // 柯羅諾斯: an even pendulum — swings through and back like a clock
+  pendulum(k, st, up) { swingSet(k, 4, { yaw: 0.2, cYaw: 0.1, hR: [0.08, 0.66, 0.1], hL: [0.04, 0.63, 0.12], bat: { hand: 'both', dir: VN(0.4, -0.2, 0.9) } }); },
+};
+const base0 = k => k[0][1];
+const contactY = up => 0.5 + up * 0.08;
 
 // ---------- pitching deliveries (right-handed) ----------
 // d: {type, kick, stride, slot, twist}
@@ -5421,7 +5487,7 @@ const GAME_API = {
     const t0 = this.phase === 'flight' ? Math.max(0, p.t - (sw.early || 0)) : -0.05;
     this.swing = { commitT: t0, contactT: t0 + SWING_LAG * (sw.lagMul || 1), angle: sw.angle, power: sw.power, user: !!sw.user };
     const B = this.batter;
-    B.setAnim('swing', { dur: 0.36, up: clamp(sw.angle / 45, -1, 1) });
+    B.setAnim('swing', { dur: 0.36, up: clamp(sw.angle / 45, -1, 1), pre: batterLoadAmt(B) });
     SFX.swing();
   },
   resolveContact() {
@@ -5535,9 +5601,9 @@ const GAME_API = {
     FLD.quicksand = 0; this.strategyDelay = 0; this.gazeHold = null; FLD.settle = false; FLD.foul = false; FLD.phantomBall = null;
     for (const f of fielderList()) { f.burnHit = false; f.bowled = false; f.decided = false; f.runTo = null; f.onBase = null; f.hasBall = false; f.zapped = false; f.invDelay = false; f.catchCD = 0; f.killHit = false; }
     // batter becomes runner
-    const br = { pl: B, base: 0, s: 0, dir: 1, tgt: 1, forced: true, isBatter: true, state: 'run', startBase: 0, delay: 0.22 };
+    const br = { pl: B, base: 0, s: 0, dir: 1, tgt: 1, forced: true, isBatter: true, state: 'run', startBase: 0, delay: 0.3 }; // a beat to show the follow-through
     FLD.runners.push(br);
-    B.setAnim('swing', { dur: 0.36, up: B.anim.up, t: B.anim.t });
+    B.setAnim('swing', { dur: 0.36, up: B.anim.up, t: B.anim.t, pre: B.anim.pre || 0 });
     ABIL.onContact(this, B, P, b, ctx);
     // 殺人球: a sweet-spot liner or grounder that hurts whoever it hits (CPU batters get one on their best contact)
     const sweetHit = U ? U.sweet : (q > 0.86 && rand() < sweetOf(B.hero).w * 2.2);
@@ -5912,8 +5978,8 @@ function playerPose(pl, t) {
   const TL = (h.throws === 'L');
   let pose;
   switch (a.k) {
-    case 'bat': pose = batStance(h.stance || {}, t); if (L) pose = mirrorPose(pose); break;
-    case 'swing': pose = batSwing(h.stance || {}, clamp(a.t / (a.dur || 0.36), 0, 1), a.up || 0); if (L) pose = mirrorPose(pose); break;
+    case 'bat': { pose = batStance(h.stance || {}, t); const ld = batterLoadAmt(pl); if (ld > 0) pose = lerpPose(pose, batLoad(h.stance || {}, batStance(h.stance || {}, 0)), ld); if (L) pose = mirrorPose(pose); break; }
+    case 'swing': pose = batSwing(h.stance || {}, clamp(a.t / (a.dur || 0.36), 0, 1), a.up || 0, a.pre || 0); if (L) pose = mirrorPose(pose); break;
     case 'pitch': { const d = h.delivery || { type: 'over', kick: 0.3 }; pose = pitchDelivery(d, clamp(t / (a.dur || 1.05), 0, 1)); if (TL) pose = mirrorPose(pose); break; }
     case 'pstand': { pose = POSE.stand(t); pose.glove = 'L'; pose.yaw = 0; pose.hR = [0.05, 0.55, 0.15]; pose.hL = [-0.05, 0.56, 0.16]; if (TL) pose = mirrorPose(pose); break; }
     case 'run': pose = POSE.run(t * (pl.runSpeed * 1.25), a.runner ? null : pl.gloveHand, 1); break;
@@ -5941,6 +6007,13 @@ function playerPose(pl, t) {
     default: pose = POSE.stand(t);
   }
   return pose;
+}
+// the batter sinks into his load as the pitch comes in (timing step), and eases out if he lets it go
+function batterLoadAmt(pl) {
+  if (!G || pl !== G.batter) return 0;
+  if (G.phase === 'windup') { const P = G.fld.pos.P; return P ? clamp(P.anim.t / (P.anim.dur * PITCH_REL_T) - 0.55, 0, 0.45) : 0; }
+  if (G.phase === 'flight' && G.pitch) return clamp(0.45 + (G.pitch.t / G.pitch.T) * 0.7, 0, 0.9);
+  return 0;
 }
 function worldToLocal(pl, w) { const d = vsub(w, [pl.pos[0], pl.pos[1] + pl.lift, pl.pos[2]]); const r = rotY(d, -pl.yaw); return [-r[0] / pl.sprite.scale, r[1] / pl.sprite.scale, r[2] / pl.sprite.scale]; }
 

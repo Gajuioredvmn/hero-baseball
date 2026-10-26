@@ -356,7 +356,7 @@ const GAME_API = {
     const t0 = this.phase === 'flight' ? Math.max(0, p.t - (sw.early || 0)) : -0.05;
     this.swing = { commitT: t0, contactT: t0 + SWING_LAG * (sw.lagMul || 1), angle: sw.angle, power: sw.power, user: !!sw.user };
     const B = this.batter;
-    B.setAnim('swing', { dur: 0.36, up: clamp(sw.angle / 45, -1, 1) });
+    B.setAnim('swing', { dur: 0.36, up: clamp(sw.angle / 45, -1, 1), pre: batterLoadAmt(B) });
     SFX.swing();
   },
   resolveContact() {
@@ -470,9 +470,9 @@ const GAME_API = {
     FLD.quicksand = 0; this.strategyDelay = 0; this.gazeHold = null; FLD.settle = false; FLD.foul = false; FLD.phantomBall = null;
     for (const f of fielderList()) { f.burnHit = false; f.bowled = false; f.decided = false; f.runTo = null; f.onBase = null; f.hasBall = false; f.zapped = false; f.invDelay = false; f.catchCD = 0; f.killHit = false; }
     // batter becomes runner
-    const br = { pl: B, base: 0, s: 0, dir: 1, tgt: 1, forced: true, isBatter: true, state: 'run', startBase: 0, delay: 0.22 };
+    const br = { pl: B, base: 0, s: 0, dir: 1, tgt: 1, forced: true, isBatter: true, state: 'run', startBase: 0, delay: 0.3 }; // a beat to show the follow-through
     FLD.runners.push(br);
-    B.setAnim('swing', { dur: 0.36, up: B.anim.up, t: B.anim.t });
+    B.setAnim('swing', { dur: 0.36, up: B.anim.up, t: B.anim.t, pre: B.anim.pre || 0 });
     ABIL.onContact(this, B, P, b, ctx);
     // 殺人球: a sweet-spot liner or grounder that hurts whoever it hits (CPU batters get one on their best contact)
     const sweetHit = U ? U.sweet : (q > 0.86 && rand() < sweetOf(B.hero).w * 2.2);
@@ -847,8 +847,8 @@ function playerPose(pl, t) {
   const TL = (h.throws === 'L');
   let pose;
   switch (a.k) {
-    case 'bat': pose = batStance(h.stance || {}, t); if (L) pose = mirrorPose(pose); break;
-    case 'swing': pose = batSwing(h.stance || {}, clamp(a.t / (a.dur || 0.36), 0, 1), a.up || 0); if (L) pose = mirrorPose(pose); break;
+    case 'bat': { pose = batStance(h.stance || {}, t); const ld = batterLoadAmt(pl); if (ld > 0) pose = lerpPose(pose, batLoad(h.stance || {}, batStance(h.stance || {}, 0)), ld); if (L) pose = mirrorPose(pose); break; }
+    case 'swing': pose = batSwing(h.stance || {}, clamp(a.t / (a.dur || 0.36), 0, 1), a.up || 0, a.pre || 0); if (L) pose = mirrorPose(pose); break;
     case 'pitch': { const d = h.delivery || { type: 'over', kick: 0.3 }; pose = pitchDelivery(d, clamp(t / (a.dur || 1.05), 0, 1)); if (TL) pose = mirrorPose(pose); break; }
     case 'pstand': { pose = POSE.stand(t); pose.glove = 'L'; pose.yaw = 0; pose.hR = [0.05, 0.55, 0.15]; pose.hL = [-0.05, 0.56, 0.16]; if (TL) pose = mirrorPose(pose); break; }
     case 'run': pose = POSE.run(t * (pl.runSpeed * 1.25), a.runner ? null : pl.gloveHand, 1); break;
@@ -876,6 +876,13 @@ function playerPose(pl, t) {
     default: pose = POSE.stand(t);
   }
   return pose;
+}
+// the batter sinks into his load as the pitch comes in (timing step), and eases out if he lets it go
+function batterLoadAmt(pl) {
+  if (!G || pl !== G.batter) return 0;
+  if (G.phase === 'windup') { const P = G.fld.pos.P; return P ? clamp(P.anim.t / (P.anim.dur * PITCH_REL_T) - 0.55, 0, 0.45) : 0; }
+  if (G.phase === 'flight' && G.pitch) return clamp(0.45 + (G.pitch.t / G.pitch.T) * 0.7, 0, 0.9);
+  return 0;
 }
 function worldToLocal(pl, w) { const d = vsub(w, [pl.pos[0], pl.pos[1] + pl.lift, pl.pos[2]]); const r = rotY(d, -pl.yaw); return [-r[0] / pl.sprite.scale, r[1] / pl.sprite.scale, r[2] / pl.sprite.scale]; }
 

@@ -150,7 +150,7 @@ const INPUT = {
       this.committed = true;
       // touch + display latency compensation: judge the swing slightly earlier than the handler runs
       const evLag = clamp((performance.now() - e.timeStamp) / 1000, 0, 0.05);
-      G.doSwing({ angle: 10, power: 1, user: true, early: 0.03 + (isFinite(evLag) ? evLag : 0) });
+      G.doSwing({ angle: 10, power: 1, user: true, early: 0.02 + (isFinite(evLag) ? evLag : 0) });
       UI.swingFx([e.clientX, e.clientY]);
     }
   },

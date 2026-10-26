@@ -5094,7 +5094,7 @@ const INPUT = {
       this.committed = true;
       // touch + display latency compensation: judge the swing slightly earlier than the handler runs
       const evLag = clamp((performance.now() - e.timeStamp) / 1000, 0, 0.05);
-      G.doSwing({ angle: 10, power: 1, user: true, early: 0.03 + (isFinite(evLag) ? evLag : 0) });
+      G.doSwing({ angle: 10, power: 1, user: true, early: 0.02 + (isFinite(evLag) ? evLag : 0) });
       UI.swingFx([e.clientX, e.clientY]);
     }
   },
@@ -5496,7 +5496,8 @@ const GAME_API = {
     if (this.swing || this.phase !== 'flight' && this.phase !== 'windup') return;
     const p = this.pitch;
     const t0 = this.phase === 'flight' ? Math.max(0, p.t - (sw.early || 0)) : -0.05;
-    this.swing = { commitT: t0, contactT: t0 + SWING_LAG * (sw.lagMul || 1), angle: sw.angle, power: sw.power, user: !!sw.user };
+    // the player's press IS the moment of contact (what you see is what you hit); CPU swings still take the bat's travel time
+    this.swing = { commitT: t0, contactT: t0 + (sw.user ? 0 : SWING_LAG * (sw.lagMul || 1)), angle: sw.angle, power: sw.power, user: !!sw.user };
     const B = this.batter;
     B.setAnim('swing', { dur: 0.36, up: clamp(sw.angle / 45, -1, 1), pre: batterLoadAmt(B) });
     SFX.swing();
@@ -5545,6 +5546,7 @@ const GAME_API = {
     this.setPhase('aim');
     this.slowmo = 0.05; this.slowT = 0;
     const b = FLD.ball; b.pos = vcopy(C.plate); b.pos[2] = -0.25;
+    if (B.anim.k === 'swing') { B.anim.t = (B.anim.dur || 0.36) * 0.5; B.poseKeyRaw = null; } // freeze on the bat meeting the ball
     UI.showPower(true, SW);
     FX.aimStart(vcopy(b.pos), C.q);
     SFX.contactTick(C.q);
@@ -5614,7 +5616,7 @@ const GAME_API = {
     // batter becomes runner
     const br = { pl: B, base: 0, s: 0, dir: 1, tgt: 1, forced: true, isBatter: true, state: 'run', startBase: 0, delay: 0.3 }; // a beat to show the follow-through
     FLD.runners.push(br);
-    B.setAnim('swing', { dur: 0.36, up: B.anim.up, t: B.anim.t, pre: B.anim.pre || 0 });
+    B.setAnim('swing', { dur: 0.36, up: B.anim.up, t: Math.max(B.anim.t, U ? 0.18 : 0), pre: B.anim.pre || 0 });
     ABIL.onContact(this, B, P, b, ctx);
     // 殺人球: a sweet-spot liner or grounder that hurts whoever it hits (CPU batters get one on their best contact)
     const sweetHit = U ? U.sweet : (q > 0.86 && rand() < sweetOf(B.hero).w * 2.2);

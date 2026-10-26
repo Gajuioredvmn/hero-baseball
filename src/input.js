@@ -77,27 +77,36 @@ function recognize(stroke, symKey) {
 
 // ---------- drawn pitch path ----------
 // how far (meters, before the pitcher's break stat) each pitch can move [sideways, up/down]
-const BREAK_MAX = { FB: [0.1, 0.08], SL: [0.6, 0.22], CB: [0.45, 0.8], CH: [0.25, 0.35], SF: [0.12, 0.62] };
-// turn the finger stroke into offsets from the straight line, sampled along the flight (keeps the drawn shape, caps its size)
+// how far each pitch type can be bent (metres, x = sideways, y = up/down) for an average pitcher
+const BREAK_MAX = { FB: [0.35, 0.4], SL: [1.6, 0.5], CB: [1.0, 1.8], CH: [0.7, 1.0], SF: [0.35, 1.5] };
+// each pitcher's signature pitch bends 30% more
+const SIG_PITCH = { houyi: 'FB', fujin: 'SL', zeus: 'SF', loki: 'CB' };
+function breakCaps(type, Pt) {
+  const st = Pt.hero.stats, brkF = 0.35 + (st.brk || 4) * 0.09, sig = SIG_PITCH[Pt.hero.id] === type ? 1.3 : 1;
+  return { mx: BREAK_MAX[type][0] * brkF * sig, my: BREAK_MAX[type][1] * brkF * sig, turns: 1 + Math.floor((st.ctrl || 4) / 3.5) };
+}
+// turn the finger stroke into offsets from the straight line, sampled along the flight: keeps the drawn shape,
+// saturates its size at what this pitcher can do, and irons out more twists than his control allows
 function strokeShape(pts, type, Pt) {
   const N = 25;
   const r = resample(pts, N);
   const S = r[0], E = r[N - 1];
-  const brkF = 0.55 + (Pt.hero.stats.brk || 4) * 0.065;
-  const mx = BREAK_MAX[type][0] * brkF, my = BREAK_MAX[type][1] * brkF;
-  const K = 1 / (0.12 * innerHeight); // a bend of 12% of the screen height = the pitch's full break
+  const { mx, my, turns } = breakCaps(type, Pt);
+  const K = 1 / (0.1 * innerHeight); // a bend of 10% of the screen height = the pitch's full break
   let ox = [], oy = [];
   for (let i = 0; i < N; i++) {
     const u = i / (N - 1);
     const dx = (r[i][0] - (S[0] + (E[0] - S[0]) * u)) * K, dy = (r[i][1] - (S[1] + (E[1] - S[1]) * u)) * K;
     ox.push(-dx * mx); oy.push(-dy * my); // screen right = world -x (pitcher's view); screen down = world down
   }
-  // smooth out finger wobble, keep both ends on the line
-  for (let pass = 0; pass < 2; pass++) { const a = ox.slice(), b = oy.slice(); for (let i = 1; i < N - 1; i++) { ox[i] = (a[i - 1] + a[i] * 2 + a[i + 1]) / 4; oy[i] = (b[i - 1] + b[i] * 2 + b[i + 1]) / 4; } }
-  const ax = Math.max(...ox.map(Math.abs)), ay = Math.max(...oy.map(Math.abs));
-  const kx = ax > mx ? mx / ax : 1, ky = ay > my ? my / ay : 1;
-  ox = ox.map(v => v * kx); oy = oy.map(v => v * ky);
-  return { ox, oy, n: N };
+  const twists = a => { let n = 0, prev = 0; for (let i = 1; i < a.length; i++) { const d = a[i] - a[i - 1]; if (Math.abs(d) < 0.01) continue; const sg = Math.sign(d); if (prev && sg !== prev) n++; prev = sg; } return n; };
+  const smooth1 = () => { const a = ox.slice(), b = oy.slice(); for (let i = 1; i < N - 1; i++) { ox[i] = (a[i - 1] + a[i] * 2 + a[i + 1]) / 4; oy[i] = (b[i - 1] + b[i] * 2 + b[i + 1]) / 4; } };
+  for (let pass = 0; pass < 2; pass++) smooth1(); // finger wobble
+  for (let pass = 0; pass < 14 && (twists(ox) > turns || twists(oy) > turns); pass++) smooth1(); // more twists than he can control
+  // saturate rather than shrink: a wild drawing stays wild, just no bigger than his arm allows
+  ox = ox.map(v => mx * Math.tanh(v / mx)); oy = oy.map(v => my * Math.tanh(v / my));
+  const amt = Math.max(...ox.map(Math.abs)) / mx + Math.max(...oy.map(Math.abs)) / my;
+  return { ox, oy, n: N, effort: 1 + Math.min(1.2, amt) * 0.6 }; // big benders tire the arm faster
 }
 function shapeOffset(sh, s) {
   const f = clamp(s, 0, 1) * (sh.n - 1), i = Math.min(sh.n - 2, Math.floor(f)), t = f - i;
@@ -180,7 +189,7 @@ const INPUT = {
     const prm = pitchParams(Pt, type, [-nx * Z.hw, Z.zc + ny * Z.hh]); // speed comes from the pitcher and the pitch type
     prm.brk = [0, 0];
     prm.shape = strokeShape(P.map(q => [q[0], q[1]]), type, Pt);
-    prm.effort = 1;
+    prm.effort = prm.shape.effort;
     UI.pitchFeedback(prm);
     G.beginPitch(prm);
   },

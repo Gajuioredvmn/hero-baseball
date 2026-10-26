@@ -145,6 +145,8 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #pitchMenu button { width: 62px; height: 58px; border-radius: 10px; background: var(--panel); border: 1px solid var(--edge-dim); color: var(--ivory); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; font-size: 13px; }
 #pitchMenu button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 #pitchMenu button b { font-weight: 900; letter-spacing: 1px; }
+#pitchMenu button { position: relative; }
+#pitchMenu button.sig::after { content: "★"; position: absolute; top: 2px; right: 5px; font-size: 12px; color: var(--gold); text-shadow: 0 0 6px rgba(255, 210, 90, .8); }
 #pitchMenu button.sel { background: linear-gradient(#ffe9a8, #e6b64a); color: #2a1a04; border-color: #fff3c8; box-shadow: 0 0 14px rgba(255, 210, 110, .6); }
 #pitchMenu.flash button { animation: menuFlash .5s ease-out 2; }
 @keyframes menuFlash { 50% { border-color: #ffd25a; box-shadow: 0 0 16px rgba(255, 210, 90, .9); } }
@@ -460,7 +462,7 @@ button.ghost { background: transparent; }
       <div class="rhead"><h2>玩法說明</h2><button class="ghost" id="howBack">返回</button></div>
       <div class="howgrid">
         <div class="hcard"><h3>打擊</h3><p>投手出手後，在球進本壘板那一刻<b>按下螢幕</b>揮棒。打擊框會自動鎖定來球，好球壞球都打得到，只看時機；出棒越晚，需要的力氣越大。</p><p>打中時畫面會變慢、跳出<b>力氣條</b>。手指按住不放：往左右滑決定打向左外野或右外野，往上滑打高飛球、往下滑打滾地球；<b>放開手指</b>那一刻力氣條停在哪，就是多大力：停在發光的<b>甜蜜點</b>最有力，平飛或滾地球會變成撞傷野手的<b>殺人球</b>，高飛球會飛得特別遠。每位英雄的甜蜜點位置、大小和力氣條速度都不一樣。</p></div>
-        <div class="hcard"><h3>投球</h3><p>先在下方<b>選球種</b>，再從螢幕下方<b>往上畫出球路</b>，手指放開的位置就是進壘點。</p><p>球會照你畫的形狀跑，能彎多少看球種和投手的「變化」能力（直球幾乎不會彎）。球速由投手能力和球種決定。</p></div>
+        <div class="hcard"><h3>投球</h3><p>先在下方<b>選球種</b>，再從螢幕下方<b>往上畫出球路</b>，手指放開的位置就是進壘點。</p><p>球會照你畫的形狀跑，可以畫得很誇張：滑球能橫向大彎、曲球能大落差、指叉球急墜。能彎多大看投手的「變化」能力，能拐幾個彎看「控球」，標 ★ 的是這位投手的招牌球種，會再多彎三成；彎越大越耗體力。球速由投手能力和球種決定。</p></div>
         <div class="hcard"><h3>必殺技</h3><p>好球、安打、出局、受傷都會累積必殺槽。集滿後點<b>必殺</b>，照著符號畫一筆就能發動英雄的專屬招式。</p><p>打擊時在投手出手前發動；投球時發動後，照常選球種、畫球路，投出去的就是魔球。</p></div>
         <div class="hcard"><h3>守備</h3><p>野手會自己追球。你的野手接到球時時間會變慢，<b>點畫面上的壘包</b>決定傳哪一壘；不點的話會自動傳。</p></div>
         <div class="hcard"><h3>跑壘</h3><p>跑者會自己判斷。球打出去後，壘包上會出現「衝！」或「退回」，點一下就能指揮跑者。投手出手前，點右下角小鑽石上的壘包可以盜壘。</p></div>
@@ -5019,27 +5021,36 @@ function recognize(stroke, symKey) {
 
 // ---------- drawn pitch path ----------
 // how far (meters, before the pitcher's break stat) each pitch can move [sideways, up/down]
-const BREAK_MAX = { FB: [0.1, 0.08], SL: [0.6, 0.22], CB: [0.45, 0.8], CH: [0.25, 0.35], SF: [0.12, 0.62] };
-// turn the finger stroke into offsets from the straight line, sampled along the flight (keeps the drawn shape, caps its size)
+// how far each pitch type can be bent (metres, x = sideways, y = up/down) for an average pitcher
+const BREAK_MAX = { FB: [0.35, 0.4], SL: [1.6, 0.5], CB: [1.0, 1.8], CH: [0.7, 1.0], SF: [0.35, 1.5] };
+// each pitcher's signature pitch bends 30% more
+const SIG_PITCH = { houyi: 'FB', fujin: 'SL', zeus: 'SF', loki: 'CB' };
+function breakCaps(type, Pt) {
+  const st = Pt.hero.stats, brkF = 0.35 + (st.brk || 4) * 0.09, sig = SIG_PITCH[Pt.hero.id] === type ? 1.3 : 1;
+  return { mx: BREAK_MAX[type][0] * brkF * sig, my: BREAK_MAX[type][1] * brkF * sig, turns: 1 + Math.floor((st.ctrl || 4) / 3.5) };
+}
+// turn the finger stroke into offsets from the straight line, sampled along the flight: keeps the drawn shape,
+// saturates its size at what this pitcher can do, and irons out more twists than his control allows
 function strokeShape(pts, type, Pt) {
   const N = 25;
   const r = resample(pts, N);
   const S = r[0], E = r[N - 1];
-  const brkF = 0.55 + (Pt.hero.stats.brk || 4) * 0.065;
-  const mx = BREAK_MAX[type][0] * brkF, my = BREAK_MAX[type][1] * brkF;
-  const K = 1 / (0.12 * innerHeight); // a bend of 12% of the screen height = the pitch's full break
+  const { mx, my, turns } = breakCaps(type, Pt);
+  const K = 1 / (0.1 * innerHeight); // a bend of 10% of the screen height = the pitch's full break
   let ox = [], oy = [];
   for (let i = 0; i < N; i++) {
     const u = i / (N - 1);
     const dx = (r[i][0] - (S[0] + (E[0] - S[0]) * u)) * K, dy = (r[i][1] - (S[1] + (E[1] - S[1]) * u)) * K;
     ox.push(-dx * mx); oy.push(-dy * my); // screen right = world -x (pitcher's view); screen down = world down
   }
-  // smooth out finger wobble, keep both ends on the line
-  for (let pass = 0; pass < 2; pass++) { const a = ox.slice(), b = oy.slice(); for (let i = 1; i < N - 1; i++) { ox[i] = (a[i - 1] + a[i] * 2 + a[i + 1]) / 4; oy[i] = (b[i - 1] + b[i] * 2 + b[i + 1]) / 4; } }
-  const ax = Math.max(...ox.map(Math.abs)), ay = Math.max(...oy.map(Math.abs));
-  const kx = ax > mx ? mx / ax : 1, ky = ay > my ? my / ay : 1;
-  ox = ox.map(v => v * kx); oy = oy.map(v => v * ky);
-  return { ox, oy, n: N };
+  const twists = a => { let n = 0, prev = 0; for (let i = 1; i < a.length; i++) { const d = a[i] - a[i - 1]; if (Math.abs(d) < 0.01) continue; const sg = Math.sign(d); if (prev && sg !== prev) n++; prev = sg; } return n; };
+  const smooth1 = () => { const a = ox.slice(), b = oy.slice(); for (let i = 1; i < N - 1; i++) { ox[i] = (a[i - 1] + a[i] * 2 + a[i + 1]) / 4; oy[i] = (b[i - 1] + b[i] * 2 + b[i + 1]) / 4; } };
+  for (let pass = 0; pass < 2; pass++) smooth1(); // finger wobble
+  for (let pass = 0; pass < 14 && (twists(ox) > turns || twists(oy) > turns); pass++) smooth1(); // more twists than he can control
+  // saturate rather than shrink: a wild drawing stays wild, just no bigger than his arm allows
+  ox = ox.map(v => mx * Math.tanh(v / mx)); oy = oy.map(v => my * Math.tanh(v / my));
+  const amt = Math.max(...ox.map(Math.abs)) / mx + Math.max(...oy.map(Math.abs)) / my;
+  return { ox, oy, n: N, effort: 1 + Math.min(1.2, amt) * 0.6 }; // big benders tire the arm faster
 }
 function shapeOffset(sh, s) {
   const f = clamp(s, 0, 1) * (sh.n - 1), i = Math.min(sh.n - 2, Math.floor(f)), t = f - i;
@@ -5122,7 +5133,7 @@ const INPUT = {
     const prm = pitchParams(Pt, type, [-nx * Z.hw, Z.zc + ny * Z.hh]); // speed comes from the pitcher and the pitch type
     prm.brk = [0, 0];
     prm.shape = strokeShape(P.map(q => [q[0], q[1]]), type, Pt);
-    prm.effort = 1;
+    prm.effort = prm.shape.effort;
     UI.pitchFeedback(prm);
     G.beginPitch(prm);
   },
@@ -5442,7 +5453,7 @@ const GAME_API = {
     if (prm.shape) { // the user's drawn path: straight line plus the drawn bends
       const sh = prm.shape, A0 = vcopy(P0), A1 = vcopy(p.P1);
       p.shape = sh;
-      p.fn = (s) => { if (s > 1) return null; const o = shapeOffset(sh, s); return [A0[0] + (A1[0] - A0[0]) * s + o[0], A0[1] + (A1[1] - A0[1]) * s + o[1], A0[2] + (A1[2] - A0[2]) * s]; };
+      p.fn = (s) => { if (s > 1) return null; const o = shapeOffset(sh, s); return [A0[0] + (A1[0] - A0[0]) * s + o[0], Math.max(0.06, A0[1] + (A1[1] - A0[1]) * s + o[1]), A0[2] + (A1[2] - A0[2]) * s]; };
       const pk = a => a.reduce((m, v) => Math.abs(v) > Math.abs(m) ? v : m, 0);
       p.B = [pk(sh.ox), pk(sh.oy), 0]; // how much it moves (makes it harder for the CPU batter)
     }
@@ -6319,7 +6330,8 @@ const UI = {
   showPitchMenu(on) {
     const m = $('#pitchMenu'); if (!m) return;
     m.hidden = !on; $('#hud').classList.toggle('pitching', on);
-    if (on) for (const b of m.querySelectorAll('button')) b.classList.toggle('sel', b.dataset.t === this.pitchType);
+    const P = G && G.fld && G.fld.pos.P, sig = P ? SIG_PITCH[P.hero.id] : null;
+    if (on) for (const b of m.querySelectorAll('button')) { b.classList.toggle('sel', b.dataset.t === this.pitchType); b.classList.toggle('sig', b.dataset.t === sig); }
   },
   intro(b, T) {
     const el = $('#intro'), h = b.hero, meta = T.meta;

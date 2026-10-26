@@ -311,7 +311,7 @@ const GAME_API = {
     if (prm.shape) { // the user's drawn path: straight line plus the drawn bends
       const sh = prm.shape, A0 = vcopy(P0), A1 = vcopy(p.P1);
       p.shape = sh;
-      p.fn = (s) => { if (s > 1) return null; const o = shapeOffset(sh, s); return [A0[0] + (A1[0] - A0[0]) * s + o[0], A0[1] + (A1[1] - A0[1]) * s + o[1], A0[2] + (A1[2] - A0[2]) * s]; };
+      p.fn = (s) => { if (s > 1) return null; const o = shapeOffset(sh, s); return [A0[0] + (A1[0] - A0[0]) * s + o[0], Math.max(0.06, A0[1] + (A1[1] - A0[1]) * s + o[1]), A0[2] + (A1[2] - A0[2]) * s]; };
       const pk = a => a.reduce((m, v) => Math.abs(v) > Math.abs(m) ? v : m, 0);
       p.B = [pk(sh.ox), pk(sh.oy), 0]; // how much it moves (makes it harder for the CPU batter)
     }

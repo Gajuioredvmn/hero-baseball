@@ -138,6 +138,8 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #pitchMenu button { width: 62px; height: 58px; border-radius: 10px; background: var(--panel); border: 1px solid var(--edge-dim); color: var(--ivory); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; font-size: 13px; }
 #pitchMenu button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 #pitchMenu button b { font-weight: 900; letter-spacing: 1px; }
+#pitchMenu button { position: relative; }
+#pitchMenu button.sig::after { content: "★"; position: absolute; top: 2px; right: 5px; font-size: 12px; color: var(--gold); text-shadow: 0 0 6px rgba(255, 210, 90, .8); }
 #pitchMenu button.sel { background: linear-gradient(#ffe9a8, #e6b64a); color: #2a1a04; border-color: #fff3c8; box-shadow: 0 0 14px rgba(255, 210, 110, .6); }
 #pitchMenu.flash button { animation: menuFlash .5s ease-out 2; }
 @keyframes menuFlash { 50% { border-color: #ffd25a; box-shadow: 0 0 16px rgba(255, 210, 90, .9); } }

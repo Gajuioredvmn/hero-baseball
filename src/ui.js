@@ -272,7 +272,8 @@ const UI = {
   showPitchMenu(on) {
     const m = $('#pitchMenu'); if (!m) return;
     m.hidden = !on; $('#hud').classList.toggle('pitching', on);
-    if (on) for (const b of m.querySelectorAll('button')) b.classList.toggle('sel', b.dataset.t === this.pitchType);
+    const P = G && G.fld && G.fld.pos.P, sig = P ? SIG_PITCH[P.hero.id] : null;
+    if (on) for (const b of m.querySelectorAll('button')) { b.classList.toggle('sel', b.dataset.t === this.pitchType); b.classList.toggle('sig', b.dataset.t === sig); }
   },
   intro(b, T) {
     const el = $('#intro'), h = b.hero, meta = T.meta;

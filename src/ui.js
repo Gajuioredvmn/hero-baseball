@@ -265,7 +265,7 @@ const UI = {
       if (!this.seenPitchHint || this.seenPitchHint < 3) { this.hint(this.pitchType ? '從下往上畫出球路，手指放開處就是進壘點' : '先選球種，再從下往上畫出球路', 2.6); this.seenPitchHint = (this.seenPitchHint || 0) + 1; }
     }
     if (G.isUserOffense()) {
-      if (!this.seenBatHint || this.seenBatHint < 3) { this.hint('球進本壘板那一刻按下螢幕，打中後滑動瞄準、放開決定力氣', 2.8); this.seenBatHint = (this.seenBatHint || 0) + 1; }
+      if (!this.seenBatHint || this.seenBatHint < 3) { this.hint('球進本壘板那一刻按下螢幕，打中後滑動瞄準，在甜蜜點放開', 2.8); this.seenBatHint = (this.seenBatHint || 0) + 1; }
     }
   },
   hidePitchUI() { $('#aim').hidden = true; this.showPitchMenu(false); },
@@ -287,8 +287,13 @@ const UI = {
   },
   hideIntro() { const el = $('#intro'); if (el.hidden) return; el.classList.add('off'); clearTimeout(this._inT); this._inT = setTimeout(() => { el.hidden = true; el.classList.remove('on', 'off'); }, 220); },
   flashMenu() { const m = $('#pitchMenu'); m.classList.remove('flash'); void m.offsetWidth; m.classList.add('flash'); },
-  showPower(on) { const el = $('#powerBar'); el.hidden = !on; if (on) this.setPower(0); },
-  setPower(v) { const el = $('#powerBar'); el.querySelector('.pbf').style.width = (v * 100).toFixed(1) + '%'; el.classList.toggle('max', v >= 0.88); },
+  showPower(on, sw) {
+    const el = $('#powerBar'); el.hidden = !on;
+    if (on && sw) { const m = el.querySelector('.pbm'); m.style.left = ((sw.c - sw.w / 2) * 100).toFixed(1) + '%'; m.style.width = (sw.w * 100).toFixed(1) + '%'; this.sw = sw; }
+    if (on) this.setPower(0);
+  },
+  setPower(v) { const el = $('#powerBar'); el.querySelector('.pbf').style.width = (v * 100).toFixed(1) + '%'; const sw = this.sw; el.classList.toggle('max', !!sw && Math.abs(v - sw.c) <= sw.w / 2); },
+  timingWord(txt, cls) { const el = document.getElementById('timing'); if (!el) return; el.textContent = txt; el.className = 'on ' + cls; clearTimeout(this._tmT); this._tmT = setTimeout(() => { el.className = ''; }, 1100); },
   aimRect() {
     const el = document.querySelector('#aim .zone');
     const r = el.getBoundingClientRect();

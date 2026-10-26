@@ -398,11 +398,12 @@ const GAME_API = {
   // ---------- user batting: aim + power after contact ----------
   beginAim(C) {
     const B = this.batter;
-    this.aim = { C, t: 0, dx: 0, dy: 0, power: 0, origin: INPUT.last(), speed: 1.45 * (1.2 - B.st.con * 0.04) };
+    const SW = sweetOf(B.hero);
+    this.aim = { C, t: 0, dx: 0, dy: 0, power: 0, origin: INPUT.last(), speed: SW.spd, sw: SW };
     this.setPhase('aim');
     this.slowmo = 0.05; this.slowT = 0;
     const b = FLD.ball; b.pos = vcopy(C.plate); b.pos[2] = -0.25;
-    UI.showPower(true);
+    UI.showPower(true, SW);
     FX.aimStart(vcopy(b.pos), C.q);
     SFX.contactTick(C.q);
   },
@@ -419,7 +420,11 @@ const GAME_API = {
     const A = this.aim; this.aim = null;
     UI.showPower(false);
     this.slowmo = 1;
-    this.launchContact(A.C, { power: A.power, dx: A.dx, dy: A.dy });
+    // the sweet spot is full power; the further off it, the weaker
+    const SW = A.sw, d = Math.max(0, Math.abs(A.power - SW.c) - SW.w / 2), sweet = d === 0;
+    const eff = sweet ? 1 : clamp(0.85 - d * 1.5, 0.2, 0.85);
+    UI.timingWord(sweet ? '甜蜜點！' : d < 0.08 ? '差一點' : '力道偏了', sweet ? 'good' : d < 0.08 ? 'ok' : 'bad');
+    this.launchContact(A.C, { power: eff, raw: A.power, sweet, dx: A.dx, dy: A.dy });
   },
   launchContact(C, U) {
     const p = this.pitch, B = this.batter, P = this.fld.pos.P, b = FLD.ball;
@@ -437,6 +442,7 @@ const GAME_API = {
       la = (sy === null ? 6 + (plate[1] - 0.62) * 22 : 10 + sy * 24 + (plate[1] - 0.62) * 8) + gauss() * (3 + (1 - q) * 9);
       spray = (sx === null ? (dtE / lim) * 60 * hs : sx * 40 + (dtE / lim) * 16 * hs) + gauss() * (4 + (1 - q) * 9);
       B.anim.up = clamp(la / 40, -0.6, 1);
+      if (U.sweet) { ev *= 1.06; if (sy !== null && sy > 0.35) ev *= 1.08; } // sweet spot; a sweet fly ball carries extra
     } else {
       ev = evBase * ctx.power * (0.42 + 0.58 * Math.pow(q, 0.8)) + p.kmh * 0.03;
       la = 4 + ctx.angle * 0.5 + (plate[1] - 0.62) * 22 + gauss() * (4 + (1 - q) * 16);
@@ -462,15 +468,20 @@ const GAME_API = {
     if (B.hero.passive.id === 'stormWind') FLD.envMul.dragMul *= 0.82;
     if (P.hero.passive.id === 'headwind' && !P.ko) FLD.envMul.dragMul *= 1.25;
     FLD.quicksand = 0; this.strategyDelay = 0; this.gazeHold = null; FLD.settle = false; FLD.foul = false; FLD.phantomBall = null;
-    for (const f of fielderList()) { f.burnHit = false; f.bowled = false; f.decided = false; f.runTo = null; f.onBase = null; f.hasBall = false; f.zapped = false; f.invDelay = false; f.catchCD = 0; }
+    for (const f of fielderList()) { f.burnHit = false; f.bowled = false; f.decided = false; f.runTo = null; f.onBase = null; f.hasBall = false; f.zapped = false; f.invDelay = false; f.catchCD = 0; f.killHit = false; }
     // batter becomes runner
     const br = { pl: B, base: 0, s: 0, dir: 1, tgt: 1, forced: true, isBatter: true, state: 'run', startBase: 0, delay: 0.22 };
     FLD.runners.push(br);
     B.setAnim('swing', { dur: 0.36, up: B.anim.up, t: B.anim.t });
     ABIL.onContact(this, B, P, b, ctx);
+    // 殺人球: a sweet-spot liner or grounder that hurts whoever it hits (CPU batters get one on their best contact)
+    const sweetHit = U ? U.sweet : (q > 0.86 && rand() < sweetOf(B.hero).w * 2.2);
+    this.contact.sweet = sweetHit;
+    if (sweetHit && !foulBack && !b.special && la < 22 && ev > 30) { b.killer = { hits: 0, dmg: Math.round(14 + ev * 0.45) }; b.glow = [1, 0.3, 0.15]; }
+    if (sweetHit && !foulBack && la >= 22) b.glow = [1, 0.85, 0.3];
     // ---- impact feel: tiered hitstop / flash / speed lines / sound / haptics ----
     const hrBound = !b.special && !b.phantom && !(b.skyT > 0) && predictHR(b, FLD.envMul);
-    const strong = U ? U.power >= 0.75 : true;
+    const strong = U ? (U.sweet || U.power >= 0.75) : true;
     const tier = hrBound ? 3 : ((q >= 0.8 && strong) || ev >= 42) ? 2 : q >= 0.45 ? 1 : 0;
     this.contact.tier = tier; this.contact.hrBound = hrBound;
     if (!foulBack) UI.say(this.contactLine(B, la, spray, ev, hrBound), hrBound ? 2 : 1);

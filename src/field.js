@@ -235,6 +235,21 @@ function fieldUpdate(dt) {
   // fair/foul decision
   if (b.standsOut && !b.gr) { b.standsOut = false; if (b.fairDecided && b.fair) { b.gr = true; b.dead = false; } else { b.fairDecided = false; decideFoul(b); } }
   if (!b.fairDecided && (b.state === 'fly' || b.state === 'loose')) checkFairFoul(b);
+  // 殺人球 plows through whoever is in its way (pitcher included)
+  if (b.killer && (b.state === 'fly' || b.state === 'loose') && vlen(b.vel) > 17 && b.killer.hits < 2) {
+    for (const f of fielderList()) {
+      if (f.killHit || vdist(b.pos, vadd(f.pos, [0, 0.9 + f.lift, 0])) > 1.15) continue;
+      f.killHit = true; b.killer.hits++; if (MAIN.debugPlays) console.log('LOG killer ' + f.fpos);
+      const took = damage(f, b.killer.dmg, 'ball', b.pos); knockback(f, vnorm([b.vel[0], 0, b.vel[2]]), 6);
+      b.vel = [b.vel[0] * 0.72 + gauss() * 1.5, Math.abs(b.vel[1]) * 0.4 + 1, b.vel[2] * 0.72 + gauss() * 1.5];
+      if (b.state === 'fly') { b.landed = true; b.state = 'loose'; }
+      FX.burst(vadd(f.pos, [0, 1, 0]), [1, 0.35, 0.2], 30, 7, 0.1); FX.text3d(vadd(f.pos, [0, 2.6, 0]), '殺人球!!', '#ff5a3a', true); SFX.thud();
+      FX.shake = Math.max(FX.shake, 0.4); FX.hitstop = Math.max(FX.hitstop, 0.08);
+      UI.say(`殺人球！${f.hero.name}被球直接轟中${took ? `，扣了 ${took} 點體力` : ''}！`, 2);
+      FLD.predT = 0; assignDefense(false);
+      break;
+    }
+  }
   // fielders
   for (const f of fielderList()) fielderUpdate(f, dt);
   // nobody able is chasing a live ball (chaser knocked out / stunned / petrified): re-plan

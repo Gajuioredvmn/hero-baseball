@@ -220,6 +220,16 @@ const AURA = {
   loki: { p: 'rise', c: [0.32, 0.8, 0.4], c2: [0.12, 0.18, 0.14], rate: 28, size: 0.36 },
 };
 
+// batting sweet spot on the power bar: c = where it sits (0..1), w = how wide, spd = bar sweeps per second
+const SWEET = {
+  nezha: { c: 0.72, w: 0.14, spd: 2.0 }, kitsune: { c: 0.55, w: 0.2, spd: 1.3 }, wukong: { c: 0.8, w: 0.16, spd: 1.7 }, susanoo: { c: 0.9, w: 0.08, spd: 1.9 },
+  bajie: { c: 0.85, w: 0.22, spd: 1.0 }, kintaro: { c: 0.88, w: 0.18, spd: 1.1 }, wujing: { c: 0.6, w: 0.2, spd: 1.2 }, tengu: { c: 0.7, w: 0.12, spd: 2.1 },
+  issun: { c: 0.5, w: 0.1, spd: 2.4 }, urashima: { c: 0.45, w: 0.24, spd: 0.9 },
+  hermes: { c: 0.6, w: 0.14, spd: 2.3 }, apollo: { c: 0.75, w: 0.15, spd: 1.6 }, athena: { c: 0.65, w: 0.22, spd: 1.3 }, heracles: { c: 0.9, w: 0.2, spd: 1.0 },
+  thor: { c: 0.88, w: 0.16, spd: 1.3 }, achilles: { c: 0.8, w: 0.12, spd: 1.8 }, odin: { c: 0.7, w: 0.18, spd: 1.4 }, hades: { c: 0.78, w: 0.16, spd: 1.2 },
+  medusa: { c: 0.55, w: 0.14, spd: 1.6 }, chronos: { c: 0.5, w: 0.26, spd: 0.8 },
+};
+const sweetOf = h => SWEET[h.id] || { c: 0.75, w: 0.15, spd: 1.5 };
 // rival match-ups (pitcher vs batter): once per game each, both teams' special gauge +20
 const RIVALS = [
   { p: 'houyi', b: 'apollo', theme: '射日英雄 vs 太陽神', lp: '天上的太陽，我一口氣射下過九個。', lb: '那就試試看，射不射得中第十個！' },

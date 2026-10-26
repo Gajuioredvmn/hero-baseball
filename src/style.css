@@ -146,7 +146,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #powerBar { position: absolute; left: 50%; bottom: calc(var(--sab) + 176px); transform: translateX(-50%); width: min(80vw, 330px); display: flex; align-items: center; gap: 8px; pointer-events: none; animation: pbIn .12s ease-out; }
 #powerBar .pbt { position: relative; flex: 1; height: 20px; border-radius: 10px; background: rgba(10, 8, 20, .8); border: 2px solid var(--gold); overflow: hidden; }
 #powerBar .pbf { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #4aa3ff, #7affa0 45%, #ffd25a 75%, #ff5a3a); }
-#powerBar .pbm { position: absolute; top: 0; bottom: 0; right: 0; width: 12%; background: rgba(255, 255, 255, .16); border-left: 2px dashed rgba(255, 255, 255, .6); }
+#powerBar .pbm { position: absolute; top: 0; bottom: 0; left: 80%; width: 12%; z-index: 1; background: rgba(255, 215, 90, .28); border-left: 2px solid #ffe08a; border-right: 2px solid #ffe08a; box-shadow: 0 0 10px rgba(255, 210, 90, .7); }
 #powerBar .pbl, #powerBar .pbr { font-weight: 900; font-size: 14px; text-shadow: 0 1px 2px #000, 0 0 6px #000; }
 #powerBar .pbr { color: var(--gold); }
 #powerBar.max .pbt { box-shadow: 0 0 18px rgba(255, 210, 90, .95); }

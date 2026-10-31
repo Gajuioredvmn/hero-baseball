@@ -1321,6 +1321,8 @@ function buildStadium() {
   buildTowers();
   // scoreboard
   buildScoreboard();
+  // mythic landmarks beyond the outfield: East gate + pagoda (left field), West temple + colossus (right field)
+  buildLandmarks();
   // backstop net
   {
     const g = new Geo();
@@ -1470,6 +1472,181 @@ function buildTowers() {
   lg.fillStyle = '#3a3530'; lg.fillRect(0, 0, 16, 16);
   for (let y = 1; y < 16; y += 4) for (let x = 1; x < 16; x += 4) { lg.fillStyle = '#fff6dc'; lg.fillRect(x, y, 3, 3); }
   ST.meshes.push({ mesh: lamps.build(), tex: glTexture(lc, 0, 0, { repeat: true }), emis: 1.0 });
+}
+
+// ---------- landmarks ----------
+// each one stands on a stone terrace behind the outfield stands and faces home plate;
+// local frame: x right (as seen from home), y up, z toward home
+function lmFrame(ang, r) {
+  const base = [Math.sin(ang) * r, 0, -Math.cos(ang) * r];
+  return { base, rot: -ang, at: p => vadd(base, rotY(p, -ang)) };
+}
+function geoTri(g, a, b, c, col) {
+  const n = vnorm(vcross(vsub(b, a), vsub(c, a)));
+  g.idx.push(g.v(a, n, [0, 0], col), g.v(b, n, [0, 0], col), g.v(c, n, [0, 0], col));
+}
+// square beam of half-width w from a to b (arms, dragon coils, lightning)
+function geoBeam(g, a, b, w, col) {
+  const d = vnorm(vsub(b, a));
+  const s = vnorm(vcross(d, Math.abs(d[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0])), t = vcross(d, s);
+  const c = (p, i, j) => vadd(p, vadd(vscale(s, i * w), vscale(t, j * w)));
+  const k = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+  for (let i = 0; i < 4; i++) { const [i0, j0] = k[i], [i1, j1] = k[(i + 1) % 4]; g.quad(c(a, i0, j0), c(a, i1, j1), c(b, i1, j1), c(b, i0, j0), col); }
+  g.quad(c(b, -1, -1), c(b, 1, -1), c(b, 1, 1), c(b, -1, 1), col);
+}
+// tiered Chinese roof: slabs that step in as they rise, eaves wider than the body
+function geoRoof(g, F, y, w, d, col, ridge) {
+  const steps = [[1.0, 0.5], [0.86, 0.55], [0.7, 0.6], [0.52, 0.55]];
+  let yy = y;
+  for (const [k, h] of steps) { g.box(F.at([0, yy + h / 2, 0]), [w * k, h / 2, d * k], col, F.rot); yy += h; }
+  if (ridge) g.box(F.at([0, yy + 0.3, 0]), [w * 0.6, 0.3, 0.35], ridge, F.rot);
+  return yy;
+}
+function textTexture(w, h, bg, fg, txt, font) {
+  const c = mkCanvas(w, h), x = c.getContext('2d');
+  x.fillStyle = bg; x.fillRect(0, 0, w, h);
+  x.strokeStyle = fg; x.lineWidth = 3; x.strokeRect(4, 4, w - 8, h - 8);
+  x.fillStyle = fg; x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(txt, w / 2, h / 2 + 2);
+  return glTexture(c, 0, 0, {});
+}
+function buildLandmarks() {
+  const S = new Geo(), Gw = new Geo(); // S: lit structure, Gw: glowing trim (gold, lanterns, lightning)
+  const terrace = [0.26, 0.22, 0.3, 1], stoneD = [0.38, 0.34, 0.4, 1];
+  const red = [0.66, 0.14, 0.11, 1], redD = [0.45, 0.09, 0.08, 1], jade = [0.14, 0.42, 0.38, 1], tileY = [0.86, 0.6, 0.16, 1], tileG = [0.16, 0.4, 0.34, 1];
+  const marble = [0.9, 0.88, 0.82, 1], marbleD = [0.74, 0.72, 0.68, 1], bronze = [0.42, 0.52, 0.48, 1];
+  const gold = [1.0, 0.78, 0.3, 1], lantern = [1.0, 0.38, 0.2, 1], pearl = [1.0, 0.45, 0.35, 1], bolt = [1.0, 0.95, 0.6, 1];
+  const plaques = [];
+  const TH = 10; // terrace height: hides the gap behind the stands
+  const terraceAt = (F, w, d) => { S.box(F.at([0, TH / 2, 0]), [w, TH / 2, d], terrace, F.rot); S.box(F.at([0, TH + 0.4, 0]), [w - 0.6, 0.4, d - 0.6], stoneD, F.rot); };
+  const A = 0.25, R0 = 170; // gate / temple bearing from the CF line, distance from home
+
+  // ===== East: 牌樓 gate flanked by 蟠龍柱 =====
+  {
+    const F = lmFrame(-A, R0);
+    terraceAt(F, 29, 7);
+    const y0 = TH + 0.8;
+    const posts = [[-15, 15], [-5.5, 21], [5.5, 21], [15, 15]];
+    for (const [x, h] of posts) {
+      S.box(F.at([x, y0 + 1, 0]), [1.6, 1, 1.6], marble, F.rot);
+      S.cyl(F.at([x, y0 + 2, 0]), 0.95, h - 2, 10, red);
+    }
+    // centre bay: lintels, plaque, big roof
+    S.box(F.at([0, y0 + 17, 0]), [6.6, 0.7, 0.8], jade, F.rot);
+    S.box(F.at([0, y0 + 19.6, 0]), [6.9, 0.8, 0.9], red, F.rot);
+    plaques.push({ F, c: [0, y0 + 14.6, 0.95], w: 4.6, h: 2.4, tex: textTexture(160, 84, '#1c3a8a', '#ffd25a', '東天門', 'bold 46px "Noto Serif TC", serif') });
+    S.box(F.at([0, y0 + 14.6, 0.5]), [2.6, 1.5, 0.35], [0.85, 0.65, 0.22, 1], F.rot);
+    const top = geoRoof(S, F, y0 + 20.4, 9.5, 2.8, tileY, redD);
+    Gw.box(F.at([0, top + 1.1, 0]), [0.5, 0.8, 0.5], gold, F.rot);
+    for (const s of [-1, 1]) {
+      Gw.box(F.at([s * 6.8, top + 0.5, 0]), [0.45, 0.9, 0.35], gold, F.rot); // ridge-end beasts
+      // side bays
+      S.box(F.at([s * 10.25, y0 + 11.5, 0]), [4.9, 0.6, 0.7], jade, F.rot);
+      S.box(F.at([s * 10.25, y0 + 13.6, 0]), [5.1, 0.7, 0.8], red, F.rot);
+      geoRoof(S, F, y0 + 14.3, 6.4, 2.4, tileG, redD);
+      // lanterns under the lintels
+      for (const x of [s * 8, s * 12.5]) { Gw.box(F.at([x, y0 + 9.6, 0.4]), [0.6, 0.85, 0.6], lantern, F.rot); S.box(F.at([x, y0 + 10.8, 0.4]), [0.1, 0.35, 0.1], redD, F.rot); }
+      Gw.box(F.at([s * 2.6, y0 + 15.6, 0.6]), [0.8, 1.1, 0.8], lantern, F.rot);
+      // 蟠龍柱: marble column with a gold dragon coiling up it, cloud board and pearl on top
+      const cx = s * 23.5, ch = 30, cr = 1.5;
+      S.box(F.at([cx, y0 + 1.2, 0]), [2.6, 1.2, 2.6], marble, F.rot);
+      S.cyl(F.at([cx, y0 + 2.4, 0]), cr, ch, 12, marble);
+      S.box(F.at([cx, y0 + 2.4 + ch * 0.78, 0]), [3.6, 0.45, 0.5], marble, F.rot);
+      S.box(F.at([cx, y0 + 2.4 + ch + 0.5, 0]), [2.0, 0.5, 2.0], marble, F.rot);
+      let prev = null;
+      const N = 54, turns = 3.2, ph = s > 0 ? 0 : PI;
+      for (let i = 0; i <= N; i++) {
+        const u = i / N, a = ph + s * u * turns * TAU;
+        const p = F.at([cx + Math.cos(a) * (cr + 0.5), y0 + 3 + u * (ch - 3), Math.sin(a) * (cr + 0.5)]);
+        if (prev) geoBeam(Gw, prev, p, 0.5 - u * 0.12, gold);
+        prev = p;
+      }
+      Gw.box(vadd(prev, [0, 0.9, 0]), [0.9, 0.9, 0.9], gold, F.rot); // head
+      Gw.box(F.at([cx, y0 + 2.4 + ch + 2.0, 0]), [0.8, 0.8, 0.8], pearl, F.rot);
+    }
+  }
+  // ===== East: 七層寶塔 =====
+  {
+    const F = lmFrame(-0.27, 228);
+    terraceAt(F, 11, 11);
+    let y = TH + 0.8, w = 6.4;
+    for (let k = 0; k < 7; k++) {
+      const h = k === 0 ? 7 : 5.2;
+      S.box(F.at([0, y + h / 2, 0]), [w, h / 2, w], k % 2 ? redD : red, F.rot);
+      Gw.box(F.at([0, y + h * 0.5, w + 0.05]), [w * 0.32, h * 0.22, 0.1], [1.0, 0.7, 0.35, 1], F.rot); // lit window
+      const ry = y + h;
+      S.box(F.at([0, ry + 0.3, 0]), [w + 2.2, 0.3, w + 2.2], tileG, F.rot);
+      S.box(F.at([0, ry + 0.8, 0]), [w + 1.1, 0.25, w + 1.1], tileG, F.rot);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) Gw.box(F.at([sx * (w + 2.0), ry - 0.5, sz * (w + 2.0)]), [0.35, 0.5, 0.35], lantern, F.rot);
+      y = ry + 1.05; w *= 0.84;
+    }
+    S.cyl(F.at([0, y, 0]), 0.6, 7, 8, stoneD, 0.15);
+    for (let k = 0; k < 5; k++) Gw.cyl(F.at([0, y + 1 + k * 1.2, 0]), 1.1 - k * 0.15, 0.35, 8, gold);
+  }
+
+  // ===== West: Olympian temple =====
+  {
+    const F = lmFrame(A, R0);
+    terraceAt(F, 22, 11);
+    let y = TH + 0.8;
+    for (let k = 0; k < 3; k++) { S.box(F.at([0, y + 0.45, 0]), [21 - k * 1.2, 0.45, 9.5 - k * 1.2], marbleD, F.rot); y += 0.9; } // stylobate steps
+    const colH = 16, cols = 8, span = 14;
+    S.box(F.at([0, y + colH / 2, -2.5]), [span - 1, colH / 2, 4.2], marbleD, F.rot); // cella
+    Gw.box(F.at([0, y + colH * 0.32, 1.75]), [2.2, colH * 0.32, 0.1], [1.0, 0.72, 0.36, 1], F.rot); // glowing doorway
+    for (const z of [3.6, -8.4]) for (let i = 0; i < cols; i++) {
+      const x = -span + i * (2 * span / (cols - 1));
+      S.cyl(F.at([x, y, z]), 1.05, colH, 10, marble, 0.86);
+      S.box(F.at([x, y + colH + 0.3, z]), [1.35, 0.3, 1.35], marble, F.rot);
+    }
+    y += colH + 0.6;
+    S.box(F.at([0, y + 1.0, -2.4]), [span + 1.6, 1.0, 6.9], marble, F.rot); // architrave
+    plaques.push({ F, c: [0, y + 1.0, 4.55], w: 2 * span, h: 1.9, tex: textTexture(512, 32, '#e4ddcc', '#8a6a2a', 'Ο Λ Υ Μ Π Ο Σ', 'bold 24px serif') });
+    S.box(F.at([0, y + 2.4, -2.4]), [span + 2.0, 0.4, 7.3], marbleD, F.rot); // cornice
+    y += 2.8;
+    // pediment: front and back triangles, two roof slopes
+    const pw = span + 2.0, ph = 5.2, z0 = 4.9, z1 = -9.7;
+    for (const z of [z0, z1]) geoTri(S, F.at([-pw, y, z]), F.at([pw, y, z]), F.at([0, y + ph, z]), marble);
+    S.quad(F.at([-pw, y, z0]), F.at([0, y + ph, z0]), F.at([0, y + ph, z1]), F.at([-pw, y, z1]), [0.62, 0.32, 0.24, 1]);
+    S.quad(F.at([pw, y, z1]), F.at([0, y + ph, z1]), F.at([0, y + ph, z0]), F.at([pw, y, z0]), [0.62, 0.32, 0.24, 1]);
+    // gold disc in the pediment, acroteria on the corners and peak
+    Gw.cyl(F.at([0, y + 1.9, z0 + 0.05]), 1.3, 0.2, 10, gold);
+    for (const x of [-pw, 0, pw]) Gw.box(F.at([x, y + (x ? 0.8 : ph + 0.8), z0 - 0.4]), [0.6, 0.8, 0.4], gold, F.rot);
+    // braziers on the steps
+    for (const s of [-1, 1]) { S.cyl(F.at([s * 20, TH + 0.8, 7]), 0.9, 3.6, 8, bronze, 0.5); Gw.box(F.at([s * 20, TH + 5, 7]), [1.1, 0.9, 1.1], lantern, F.rot); }
+  }
+  // ===== West: colossus of the sky father, thunderbolt raised =====
+  {
+    const F = lmFrame(0.27, 228);
+    terraceAt(F, 10, 10);
+    const y = TH + 0.8;
+    S.box(F.at([0, y + 9, 0]), [6.5, 9, 6.5], marbleD, F.rot); // pedestal, tall enough to clear the temple roof
+    S.box(F.at([0, y + 18.4, 0]), [7.2, 0.4, 7.2], marble, F.rot);
+    const b = y + 18.8;
+    S.cyl(F.at([0, b, 0]), 4.4, 17, 12, marble, 3.0);                 // robe
+    S.box(F.at([0, b + 21, 0]), [3.6, 4.4, 2.3], marble, F.rot);       // torso
+    S.box(F.at([1.6, b + 20.5, 0.6]), [2.4, 5.5, 2.5], marbleD, F.rot); // drape over one shoulder
+    S.cyl(F.at([0, b + 25.4, 0]), 1.2, 1.4, 8, marble);                // neck
+    S.box(F.at([0, b + 28.6, 0]), [2.2, 2.4, 2.2], marble, F.rot);     // head
+    S.box(F.at([0, b + 26.6, 1.9]), [1.7, 1.9, 0.6], marbleD, F.rot);  // beard
+    for (let k = 0; k < 7; k++) Gw.box(F.at([-2.2 + k * 0.73, b + 31.0 + Math.sin(k / 6 * PI) * 0.5, 0]), [0.3, 0.3, 1.9], gold, F.rot); // laurel
+    // right arm raised high with the bolt, left arm down holding an orb
+    const shR = F.at([-4.2, b + 24.2, 0]), elR = F.at([-6.4, b + 29.6, 0.8]), haR = F.at([-6.9, b + 35.2, 0.6]);
+    geoBeam(S, shR, elR, 1.25, marble); geoBeam(S, elR, haR, 1.1, marble);
+    S.box(haR, [1.4, 1.4, 1.4], marble, F.rot);
+    const zz = [[-6.0, 33], [-8.8, 37.5], [-6.4, 38.5], [-9.2, 44], [-6.9, 44.5], [-9.6, 50]];
+    for (let i = 0; i < zz.length - 1; i++) geoBeam(Gw, F.at([zz[i][0], b + zz[i][1], 0.6]), F.at([zz[i + 1][0], b + zz[i + 1][1], 0.6]), 0.55, bolt);
+    const shL = F.at([4.2, b + 24.2, 0]), elL = F.at([5.6, b + 18.6, 1.2]), haL = F.at([5.4, b + 13.8, 2.6]);
+    geoBeam(S, shL, elL, 1.25, marble); geoBeam(S, elL, haL, 1.1, marble);
+    Gw.box(vadd(haL, [0, -1.4, 0]), [1.5, 1.5, 1.5], [0.6, 0.85, 1.0, 1], F.rot);
+  }
+
+  ST.meshes.push({ mesh: S.build(), tex: R.white, emis: 0.18 });
+  ST.meshes.push({ mesh: Gw.build(), tex: R.white, emis: 0.9 });
+  for (const p of plaques) {
+    const g = new Geo(), [cx, cy, cz] = p.c, hw = p.w / 2, hh = p.h / 2;
+    g.quad(p.F.at([cx - hw, cy - hh, cz]), p.F.at([cx + hw, cy - hh, cz]), p.F.at([cx + hw, cy + hh, cz]), p.F.at([cx - hw, cy + hh, cz]), [1, 1, 1, 1], [[0, 1], [1, 1], [1, 0], [0, 0]]);
+    ST.meshes.push({ mesh: g.build(), tex: p.tex, emis: 0.75 });
+  }
 }
 
 function buildScoreboard() {

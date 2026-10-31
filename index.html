@@ -2459,9 +2459,10 @@ function batStance(st, t) {
 }
 // swing: t in [0,1]; contact at t=0.5. variant: upward (-1..1) swing plane
 // the load a hitter sinks into while the pitch is on its way (pre = 0..1)
+// coil: weight rocks onto the back leg, front knee tucks in, shoulders turn further than the hips, hands go back and up
 function batLoad(st, base) {
-  return Object.assign({}, base, { root: [0.03, base.root[1] - 0.02, -0.03], yaw: base.yaw - 0.12, cYaw: -0.6, pitch: (base.pitch || 0.12) + 0.04, roll: 0,
-    fL: [-((st.w || 0.2) * 0.5) - 0.1, 0.13, 0.06], kL: [-0.3, 0.55, 0.6], hR: [0.16, 0.76, -0.08], hL: [0.12, 0.73, -0.05], bat: { hand: 'both', dir: vnorm([0.5, 0.72, -0.45]) } });
+  return Object.assign({}, base, { root: [0.05, base.root[1] - 0.035, -0.04], yaw: base.yaw - 0.2, cYaw: -0.78, pitch: (base.pitch || 0.12) + 0.06, roll: 0.04,
+    fL: [-((st.w || 0.2) * 0.5) - 0.04, 0.17, 0.03], kL: [0.05, 0.6, 0.7], hR: [0.22, 0.8, -0.1], hL: [0.18, 0.77, -0.07], bat: { hand: 'both', dir: vnorm([0.55, 0.62, -0.55]) } });
 }
 // swing: t in [0,1]; contact at t=0.5. up: swing plane (-1 grounder .. 1 fly). pre: how far into the load he already was
 // a real swing: stride and plant, hips fire first, shoulders and hands follow with the bat lagging flat behind,
@@ -2474,9 +2475,12 @@ function batSwing(st, t, up = 0, pre = 0) {
   const keys = [
     [0, base0],
     [0.24, batLoad(st, base0)],
-    [0.5, { root: [-0.05, 0.36, 0.04], yaw: 0.55, cYaw: 0.4, pitch: 0.22, roll: -0.05, hPitch: 0.18, hR: [0.04, contactH, 0.27], hL: [0.0, contactH - 0.02, 0.25], fR: [0.13, 0.12, -0.1], fL: [-w * 0.5 - 0.16, 0.05, 0.14], kR: [0.25, 0.25, 0.75], kL: [-0.5, 0.3, 0.6], bat: { hand: 'both', dir: vnorm([-0.1, up * 0.25 - 0.05, 1]) }, expr: 'shout' }, 'in'],
-    [0.66, { root: [-0.06, 0.38, 0.04], yaw: 0.95, cYaw: 0.85, pitch: 0.14, roll: -0.04, hPitch: 0.1, hR: [-0.22, 0.64 + up * 0.1, 0.12], hL: [-0.24, 0.62 + up * 0.1, 0.08], fR: [0.1, 0.14, -0.08], fL: [-w * 0.5 - 0.16, 0.05, 0.14], bat: { hand: 'both', dir: vnorm([-1, 0.25 + up * 0.3, 0.15]) }, expr: 'shout' }, 'out'],
-    [1, { root: [-0.06, 0.4, 0.03], yaw: 1.05, cYaw: 0.95, pitch: 0.06, hR: [-0.2, 0.76, -0.06], hL: [-0.22, 0.74, -0.03], fR: [0.06, 0.16, -0.06], fL: [-w * 0.5 - 0.16, 0.05, 0.14], kR: [0.15, 0.3, 0.7], bat: { hand: 'both', dir: vnorm([0.25, 0.55, -0.85]) }, expr: 'normal' }],
+    // contact: front leg braced, back heel up and knee driving at the plate, head down on the ball, hips open ahead of the chest
+    [0.5, { root: [-0.07, 0.35, 0.04], yaw: 0.6, cYaw: 0.35, pitch: 0.22, roll: -0.06, hPitch: 0.22, hR: [0.04, contactH, 0.27], hL: [0.0, contactH - 0.02, 0.25], fR: [0.12, 0.13, -0.09], fL: [-w * 0.5 - 0.16, 0.05, 0.14], kR: [0.08, 0.26, 0.8], kL: [-0.45, 0.22, 0.5], bat: { hand: 'both', dir: vnorm([-0.1, up * 0.25 - 0.05, 1]) }, expr: 'shout' }, 'in'],
+    // follow: the barrel keeps going around to the pull side and starts to rise (stays readable from behind the plate)
+    [0.74, { root: [-0.08, 0.38, 0.04], yaw: 1.05, cYaw: 0.95, pitch: 0.12, roll: -0.04, hPitch: 0.1, hR: [-0.26, 0.6 + up * 0.1, 0.04], hL: [-0.28, 0.58 + up * 0.1, 0.02], fR: [0.08, 0.16, -0.06], fL: [-w * 0.5 - 0.16, 0.05, 0.14], kR: [-0.05, 0.28, 0.8], bat: { hand: 'both', dir: vnorm([-0.45, 0.2 + up * 0.3, -0.87]) }, expr: 'shout' }, 'out'],
+    // finish: belly button to the pitcher, up on the back toe, hands high over the front shoulder, bat wrapped down the back
+    [1, { root: [-0.08, 0.41, 0.03], yaw: 1.15, cYaw: 1.0, pitch: 0.04, hR: [-0.2, 0.9, -0.12], hL: [-0.22, 0.87, -0.09], fR: [0.04, 0.17, -0.04], fL: [-w * 0.5 - 0.16, 0.05, 0.14], kR: [-0.1, 0.3, 0.75], bat: { hand: 'both', dir: vnorm([0.4, 0.45, -0.8]) }, expr: 'normal' }],
   ];
   if (iai) keys[2][1].bat.dir = vnorm([-0.3, -0.05, 1]);
   const f = SWING_STYLE[st.style]; if (f) f(keys, st, up, base0);
@@ -2485,6 +2489,10 @@ function batSwing(st, t, up = 0, pre = 0) {
   const L = keys[1][1], C = keys[2][1];
   const stride = Object.assign({}, lerpPose(L, C, 0.2), { hR: L.hR, hL: L.hL, bat: L.bat, cYaw: L.cYaw - 0.05, fL: C.fL, kL: C.kL || L.kL, yaw: L.yaw + 0.05 });
   const launch = Object.assign({}, lerpPose(L, C, 0.62), { yaw: C.yaw - 0.05, cYaw: lerp(L.cYaw, C.cYaw, 0.45), fL: C.fL, bat: { hand: C.bat.hand, dir: vnorm(lerpV(L.bat.dir, [0.6, 0.12, -0.8], 0.8)) } }); // bat laid flat behind, knob leading
+  // extension just past contact: both arms long through the ball, the barrel between the plate and the follow-through
+  const F = keys[3][1];
+  const ext = Object.assign({}, lerpPose(C, F, 0.35), { hR: vadd(C.hR, [-0.2, 0.03, 0.03]), hL: vadd(C.hL, [-0.2, 0.03, 0.02]), fL: C.fL, bat: { hand: C.bat.hand, dir: vnorm(lerpV(C.bat.dir, F.bat.dir, 0.4)) } });
+  keys.splice(3, 0, [0.6, ext, 'out']);
   keys.splice(2, 0, [0.36, stride], [0.44, launch, 'in']);
   // he may already be loaded when the swing starts
   if (pre > 0) keys[0] = [0, lerpPose(base0, L, Math.min(1, pre))];
